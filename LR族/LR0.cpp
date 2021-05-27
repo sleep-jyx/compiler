@@ -29,11 +29,12 @@ int gotoTable[50][50];   //goto表，行表示状态，列表示非终结符
 
 void initGrammar()
 {
+    /*
     grammar.push_back("S'->S");
     grammar.push_back("S->BB");
     grammar.push_back("B->aB");
     grammar.push_back("B->b");
-
+    */
     /*
     grammar.push_back("S'->E");
     grammar.push_back("E->aA");
@@ -43,6 +44,14 @@ void initGrammar()
     grammar.push_back("B->cB");
     grammar.push_back("B->d");
     */
+    //表达式文法
+    grammar.push_back("E'->E");
+    grammar.push_back("E->E+T");
+    grammar.push_back("E->T");
+    grammar.push_back("T->T*F");
+    grammar.push_back("T->F");
+    grammar.push_back("F->(E)");
+    grammar.push_back("F->i");
 }
 
 int mergeSet()
@@ -347,7 +356,7 @@ void constructStatusSet()
             {
                 cout << it->rightPart[j];
             }
-            cout << "\t\t│" << endl;
+            cout << "     \t│" << endl;
         }
         cout << "└───────────────┘" << endl;
     }
@@ -377,8 +386,7 @@ void constructStatusSet()
                 cout << actionTable[i][it->second] << "\t";
         }
         for (auto it = VN2int.begin(); it != VN2int.end(); it++)
-        { //goto,
-            //goto表跳过增广文法的左部
+        { //goto表跳过增广文法的左部
             if (it->first == getVn(grammar[0].substr(0, 2)))
                 continue;
             cout << gotoTable[i][it->second] << "\t";
@@ -393,8 +401,8 @@ int main()
     LR(0)分析
     1、构造初始化文法
     2、识别所有终结符和非终结符?
-    3、将文法转为新的数据结构
-    4、构造各个状态集
+    3、构造初始状态集(BFS)
+    4、由初始状态集构造其他状态集(BFS)
     5、构造状态分析表(action和goto)
     */
     initGrammar();   //初始化文法
