@@ -15,6 +15,8 @@ struct term
     int termType; //移进项目、待约项目、规约项目
     string leftPart;
     vector<string> rightPart;
+    int dotPos; //活前缀在右部的位置
+
     bool operator==(const term &b) const
     {
         if (leftPart == b.leftPart && rightPart == b.rightPart)
@@ -141,57 +143,82 @@ int actionVT(int statusNum, term moveTerm, string vt, int dotPos)
         return globalStatusNum - 1;
 }
 
+//新的gotoVN函数可以一次处理一个状态集中的多个项(保证这多个项的活前缀后的符号相同)，所以在构造状态集的过程中不用再一个个项目的BFS遍历了，应该用活前缀后的符号(取不重复集)进行BFS遍历
 int gotoVN(int statusNum, term reduceTerm, string vn, int dotPos)
 { //由状态集statusNum中的某个规约项目reduceTerm读入一个非终结符vn,活前缀位置
-    term tmpTerm;
-    tmpTerm.leftPart = reduceTerm.leftPart;
-    //活前缀后移一位
-    for (int i = 0; i < reduceTerm.rightPart.size(); i++)
+
+    for (int i = 0; i < statusSet[statusNum].size(); i++)
     {
-        string str = reduceTerm.rightPart[i];
-        if (i == dotPos)
-            continue;
-        tmpTerm.rightPart.push_back(str);
-    }
-    tmpTerm.rightPart.insert(tmpTerm.rightPart.begin() + dotPos + 1, "·");
-    //如果后移一位之后发现成为了规约项目(就是说本身活前缀就在倒数第二位)
-    if (dotPos == reduceTerm.rightPart.size() - 2)
-    {
-        tmpTerm.termType = 4;
-        statusSet[globalStatusNum++].push_back(tmpTerm);
-    }
-    else if (VT2int.count(reduceTerm.rightPart[dotPos + 1]) != 0)
-    { //活前缀不在最后，且紧随着一个终结符(移进项目)
-        tmpTerm.termType = 2;
-        statusSet[globalStatusNum++].push_back(tmpTerm);
-    }
-    else if (VN2int.count(reduceTerm.rightPart[dotPos + 1]) != 0)
-    { //活前缀不在最后，且紧随着一个非终结符(待约项目)，将上一个状态集中的该非终结符产生式加入
-        //先加入 S->B·B
-        tmpTerm.termType = 3;
-        statusSet[globalStatusNum].push_back(tmpTerm);
-        //再遍历文法，把左部为B的产生式都加入状态集
-        for (int k = 0; k < grammar.size(); k++)
+        vector<string> right = statusSet[statusNum][i].rightPart;
+        for (int j = 0; j < right.size(); j++)
         {
-            string X = getVn(grammar[k].substr(0, 2));
-            if (X == reduceTerm.rightPart[dotPos + 1])
+            if (right[j] == "·")
             {
-                vector<string> Y;
-                split(grammar[k], X, Y);
-                if (VT2int.count(Y[0]) != 0) //S->·bBB，移进项目
-                    tmpTerm.termType = 2;
-                else if (VN2int.count(Y[0]) != 0) //S->b·BB,待约项目
-                    tmpTerm.termType = 3;
-                if (find(Y.begin(), Y.end(), "·") == Y.end()) //没有活前缀"·"就加入
-                {
-                    Y.insert(Y.begin(), "·");
-                }
-                tmpTerm.leftPart = X;
-                tmpTerm.rightPart = Y;
-                statusSet[globalStatusNum].push_back(tmpTerm);
+                dotPos = j;
+                break;
             }
         }
-        globalStatusNum++;
+        if (dotPos < right.size() - 1 && vn == right[dotPos + 1])
+        {
+            reduceTerm = statusSet[statusNum][i];
+            term tmpTerm;
+            tmpTerm.leftPart = reduceTerm.leftPart;
+            //活前缀后移一位reduceTerm.rightPart[dotPos + 1]
+            for (int i = 0; i < reduceTerm.rightPart.size(); i++)
+            {
+                string str = reduceTerm.rightPart[i];
+                if (i == dotPos)
+                    reduceTerm.rightPart[dotPos + 1] continue;
+                tmpTerm.rightPart.push_back(str);
+            }
+            tmpTerm.rightPart.insert(tmpTerm.rightPart.begin() + dotPos + 1, "·");
+            //活前缀后移一位，位置+1
+            dotPos = dotPos + 1;
+            //如果后移一位之后发现成为了规约项目,则加入新项目集
+            if (dotPos == reduceTerm.rightPart.size() - 1)
+            {
+                tmpTerm.termType = 4;
+                statusSet[globalStatusNum].push_back(tmpTerm);
+            }
+            else if (VT2int.count(reduceTerm.rightPart[dotPos + 1]) != 0)
+            { //活前缀不在最后，且紧随着一个终结符(移进项目)，加入新项目
+                tmpTerm.termType = 2;
+                string vt = reduceTerm.rightPart[dotPos + 1];
+                cout << "I" << statusNum << "--" << vt << "-->"
+                     << "I" << globalStatusNum << endl;
+                statusSet[globalStatusNum].push_back(tmpTerm);
+            }
+            else if (VN2int.count(reduceTerm.rightPart[dotPos + 1]) != 0)
+            { //活前缀不在最后，且紧随着一个非终结符(待约项目)，将上一个状态集中的该非终结符产生式加入
+                //先加入 S->B·B
+                tmpTerm.termType = 3;
+                string vn = reduceTerm.rightPart[dotPos + 1];
+                cout << "I" << statusNum << "--" << vn << "-->"
+                     << "I" << globalStatusNum << endl;
+                statusSet[globalStatusNum].push_back(tmpTerm);
+                //再遍历文法，把左部为B的产生式都加入状态集
+                for (int k = 0; k < grammar.size(); k++)
+                {
+                    string X = getVn(grammar[k].substr(0, 2));
+                    if (X == reduceTerm.rightPart[dotPos + 1])
+                    {
+                        vector<string> Y;
+                        split(grammar[k], X, Y);
+                        if (VT2int.count(Y[0]) != 0) //S->·bBB，移进项目
+                            tmpTerm.termType = 2;
+                        else if (VN2int.count(Y[0]) != 0) //S->b·BB,待约项目
+                            tmpTerm.termType = 3;
+                        if (find(Y.begin(), Y.end(), "·") == Y.end()) //没有活前缀"·"就加入
+                        {
+                            Y.insert(Y.begin(), "·");
+                        }
+                        tmpTerm.leftPart = X;
+                        tmpTerm.rightPart = Y;
+                        statusSet[globalStatusNum].push_back(tmpTerm);
+                    }
+                }
+            }
+        }
     }
     int flag = mergeSet();
     if (flag != -1) //可合并
@@ -203,6 +230,7 @@ int gotoVN(int statusNum, term reduceTerm, string vn, int dotPos)
     else
         return globalStatusNum - 1;
 }
+
 void constructStatusSet()
 {
     int statusNum = 0; //状态集编号
@@ -213,6 +241,7 @@ void constructStatusSet()
     split(grammar[0], X, Y);
     if (find(Y.begin(), Y.end(), "·") == Y.end()) //没有活前缀"·"
         Y.insert(Y.begin(), "·");
+    tmpTerm.dotPos = 0;
     tmpTerm.leftPart = X;
     tmpTerm.rightPart = Y;
 
@@ -248,6 +277,7 @@ void constructStatusSet()
                     {
                         Y2.insert(Y2.begin(), "·");
                     }
+                    tmpTerm.dotPos = 0;
                     tmpTerm.leftPart = X2;
                     tmpTerm.rightPart = Y2;
                     statusSet[0].push_back(tmpTerm);
@@ -260,14 +290,27 @@ void constructStatusSet()
 
     //构造其他状态集,BFS,为了在队列中也能够区分不同状态集的项目，引入分隔项
     queue<term> q;
+    queue<string> symbolToRead;
+    map<string, int> symbolMap;
+    string stringSep = "sep";
     term sep;
     sep.termType = 666; //挪用下这个变量，虽然用法不恰当
-    int curStatus = 0;  //队列中当前项是什么状态
+    int curStatus = 0;  //队列中当前项的状态
     for (int i = 0; i < statusSet[0].size(); i++)
-        q.push(statusSet[0][i]);
-    q.push(sep); //加入分隔项
-    while (!q.empty())
     {
+        string symbolStr = statusSet[0][i].rightPart[statusSet[0][i].dotPos + 1];
+        if (symbolMap[symbolStr] != 0)
+            symbolToRead.push(symbolStr);
+        else
+            symbolMap[symbolStr]++;
+        q.push(statusSet[0][i]);
+    }
+    //symbolMap.clear();
+    q.push(sep); //加入分隔项
+    symbolToRead.push(stringSep);
+    while (!symbolToRead.empty())
+    {
+        /*
         int dotPos = -1;
         tmpTerm = q.front();
         if (tmpTerm.termType == 666)
@@ -284,8 +327,45 @@ void constructStatusSet()
                 dotPos = j;
                 break;
             }
+        }*/
+        for (int ii = 0; ii < symbolMap[symbolToRead.front()]; ii++)
+        { //有1或n个项目读入同一个符号
+            for (int jj = 0; jj < statusSet[curStatus].size(); jj++)
+            { //找到这1或n个项目
+                if (statusSet[curStatus][jj].rightPart[statusSet[curStatus][jj].dotPos + 1] == symbolToRead.front())
+                {
+                    if (statusSet[curStatus][jj].dotPos == statusSet[curStatus][jj].rightPart.size() - 1)
+                    { //如果是规约项目（活前缀在最后）
+                        cout << "I" << curStatus << "中的";
+                        for (auto it = statusSet[curStatus].begin(); it != statusSet[curStatus].end(); it++)
+                        {
+                            cout << it->leftPart << "->";
+                            for (int j = 0; j < it->rightPart.size(); j++)
+                                cout << it->rightPart[j];
+                        }
+                        cout << "是规约项" << endl;
+                        //判断该规约项是用哪个产生式规约的
+                        string reduceTerm = tmpTerm.leftPart + "->";
+                        for (int ii = 0; ii < tmpTerm.rightPart.size() - 1; ii++)
+                            reduceTerm = reduceTerm + tmpTerm.rightPart[ii];
+                        int genNum = -1;
+                        for (int ii = 0; ii < grammar.size(); ii++)
+                            if (reduceTerm == grammar[ii])
+                                genNum = ii;
+                        //接受状态
+                        if (genNum == 0)
+                            actionTable[curStatus][VT2int["$"]] = 10000;
+                        else
+                        { //LR(0)分析中只要某状态集中存在规约项，则action表中该行所有终结符用同一产生式规约
+                            for (auto it = VT2int.begin(); it != VT2int.end(); it++)
+                                actionTable[curStatus][it->second] = 1000 + genNum; //同样为避免编号冲突，规约项全体加1000
+                        }
+                        q.pop();
+                        continue;
+                    }
+                }
+            }
         }
-
         int sNum = 0;
         if (dotPos == tmpTerm.rightPart.size() - 1)
         { //如果是规约项目（活前缀在最后）
@@ -320,16 +400,16 @@ void constructStatusSet()
         { //如果是移进项目（活前缀后面是终结符）
             string vt = tmpTerm.rightPart[dotPos + 1];
             sNum = actionVT(curStatus, tmpTerm, vt, dotPos);
-            cout << "I" << curStatus << "--" << vt << "-->"
-                 << "I" << sNum << endl;
+            //cout << "I" << curStatus << "--" << vt << "-->"
+            //     << "I" << sNum << endl;
             actionTable[curStatus][VT2int[vt]] = 100 + sNum; //为避免编号冲突，令移进项全体加100
         }
-        else if (VN2int.count(tmpTerm.rightPart[dotPos + 1]) != 0)
+        reduceTerm.rightPart[dotPos + 1] else if (VN2int.count(tmpTerm.rightPart[dotPos + 1]) != 0)
         { //如果是待约项目（活前缀后面是非终结符）
             string vn = tmpTerm.rightPart[dotPos + 1];
             sNum = gotoVN(curStatus, tmpTerm, vn, dotPos);
-            cout << "I" << curStatus << "--" << vn << "-->"
-                 << "I" << sNum << endl;
+            //cout << "I" << curStatus << "--" << vn << "-->"
+            //     << "I" << sNum << endl;
             gotoTable[curStatus][VN2int[vn]] = sNum;
         }
         //新状态集入队列,指向已有的状态集的就不要入队列了
