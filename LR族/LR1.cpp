@@ -15,12 +15,15 @@ struct term
     int termType; //移进项目、待约项目、规约项目
     string leftPart;
     vector<string> rightPart;
-    int dotPos{-1};            //活前缀在右部的位置,初始化为-1
-    string subsequence{"@_@"}; //LR1文法才用到的后继符,随便初始化一个字符串
+    int dotPos{-1};             //活前缀在右部的位置,初始化为-1
+    vector<string> subsequence; //LR1文法才用到的后继符,随便初始化一个字符串
     bool operator==(const term &b) const
     {
-        if (leftPart == b.leftPart && rightPart == b.rightPart && dotPos == b.dotPos && subsequence == b.subsequence)
-            return true;
+        if (leftPart == b.leftPart && rightPart == b.rightPart && dotPos == b.dotPos)
+        {
+            if (subsequence == b.subsequence)
+                return true;
+        }
         return false;
     }
 };
@@ -50,21 +53,23 @@ void initGrammar()
     grammar.push_back("R->L");
     */
     //龙书本科版，LR1例子,验证正确
+    /*
     grammar.push_back("S'->S");
     grammar.push_back("S->CC");
     grammar.push_back("C->cC");
     grammar.push_back("C->d");
+    */
 
-    //该文法使用SLR也有冲突
-    /*
-    grammar.push_back("S'->E");
+    //赋值语句文法
+    grammar.push_back("S'->A");
+    grammar.push_back("A->i=E");
+    grammar.push_back("E->@E");
     grammar.push_back("E->E+E");
     grammar.push_back("E->E-E");
     grammar.push_back("E->E*E");
     grammar.push_back("E->E/E");
     grammar.push_back("E->(E)");
     grammar.push_back("E->i");
-    */
 }
 
 int mergeSet()
@@ -98,7 +103,7 @@ void initI0()
         firstTerm.dotPos = 0;
     firstTerm.leftPart = X;
     firstTerm.rightPart = Y;
-    firstTerm.subsequence = "$";
+    firstTerm.subsequence.push_back("$");
     statusSet[0].push_back(firstTerm);
 }
 
@@ -132,59 +137,68 @@ void closure(int statusNum)
                 newTerm.termType = 3;
             //找b
             string beta;
-            string b;
+            vector<string> b;
             if (curTerm.dotPos == curTerm.rightPart.size() - 1)
             { //如果beta不存在，b即alpha
                 b = curTerm.subsequence;
-                newTerm.subsequence = b;
-                //只有闭包生成的新项不在集合I中才加入
-                int newTermFlag = 1;
-                for (int k = 0; k < statusSet[statusNum].size(); k++)
-                    if (newTerm == statusSet[statusNum][k])
-                        newTermFlag = 0;
-                if (newTermFlag == 1)
-                {
-                    termQueue.push(newTerm);
-                    statusSet[statusNum].push_back(newTerm);
-                }
             }
             else if (VT2int.count(curTerm.rightPart[curTerm.dotPos + 1]) != 0)
             { //如果beta存在，b为first(beta)。特例：beta为终结符时，b就是beta
-                b = curTerm.rightPart[curTerm.dotPos + 1];
-                newTerm.subsequence = b;
-                //只有闭包生成的新项不在集合I中才加入
-                int newTermFlag = 1;
-                for (int k = 0; k < statusSet[statusNum].size(); k++)
-                    if (newTerm == statusSet[statusNum][k])
-                        newTermFlag = 0;
-                if (newTermFlag == 1)
-                {
-                    termQueue.push(newTerm);
-                    statusSet[statusNum].push_back(newTerm);
-                }
+                b.push_back(curTerm.rightPart[curTerm.dotPos + 1]);
             }
             else
             { //遍历first(beta)中的终结符b
                 beta = curTerm.rightPart[curTerm.dotPos + 1];
                 for (auto it = first[VN2int[beta]].begin(); it != first[VN2int[beta]].end(); it++)
                 {
-                    b = *it;
-                    newTerm.subsequence = b;
-                    //只有闭包生成的新项不在集合I中才加入
-                    int newTermFlag = 1;
-                    for (int k = 0; k < statusSet[statusNum].size(); k++)
-                        if (newTerm == statusSet[statusNum][k])
-                            newTermFlag = 0;
-                    if (newTermFlag == 1)
-                    {
-                        termQueue.push(newTerm);
-                        statusSet[statusNum].push_back(newTerm);
-                    }
+                    b.push_back(*it);
                 }
+            }
+            newTerm.subsequence = b;
+            //只有闭包生成的新项不在集合I中才加入
+            int newTermFlag = 1;
+            for (int k = 0; k < statusSet[statusNum].size(); k++)
+            {
+                if (newTerm == statusSet[statusNum][k])
+                    newTermFlag = 0;
+            }
+            if (newTermFlag == 1)
+            {
+                termQueue.push(newTerm);
+                statusSet[statusNum].push_back(newTerm);
             }
         }
         termQueue.pop();
     }
+    //合并后继符
+    /*vector<term> newSet; //合并后继符的项集
+    map<term, int> mergedTermMap;
+    term curTerm = statusSet[statusNum][0];
+    term cleanTerm = statusSet[statusNum][0];
+    newSet.push_back(curTerm);
+    cleanTerm.subsequence.clear(); //map中不保留后继符
+    mergedTermMap[cleanTerm]++;
+
+    int size = statusSet[statusNum].size();
+    for (int i = 1; i < size; i++)
+    {
+        curTerm = statusSet[statusNum][i];
+        cleanTerm = statusSet[statusNum][i];
+        cleanTerm.subsequence.clear();
+        if (mergedTermMap[cleanTerm] != 0)
+        {
+            for(int i=0;i<curTerm.subsequence.size();i++)
+            {
+
+            }
+        }
+        else
+        {
+            newSet.push_back(curTerm);
+            mergedTermMap[cleanTerm]++;
+        }
+        
+    }*/
 }
 
 //GOTO函数无须变动，不管是什么分析，都是从集合I读入一个符号经过闭包运算得到集合J。goto函数内部调用了closure()。
@@ -254,8 +268,13 @@ void printStatus()
             }
             if (it->rightPart.size() == it->dotPos)
                 cout << "·";
-            if (it->subsequence != "@_@")
-                cout << "," << it->subsequence;
+            for (int j = 0; j < it->subsequence.size(); j++)
+            {
+                if (j == 0)
+                    cout << "," << it->subsequence[j];
+                else
+                    cout << "_" << it->subsequence[j];
+            }
             cout << "     \t│" << endl;
         }
 
@@ -268,7 +287,7 @@ void printTable()
     //输出分析表
     cout << " \t";
     for (auto it = VT2int.begin(); it != VT2int.end(); it++)
-        cout << it->first << "\t";
+        cout << it->first << " \t";
     for (auto it = VN2int.begin(); it != VN2int.end(); it++)
     { //goto表跳过增广文法的左部
         if (it->first == getVn(grammar[0].substr(0, 2)))
@@ -288,7 +307,7 @@ void printTable()
             else if (actionTable[i][it->second] == 10000)
                 cout << "acc\t";
             else
-                cout << actionTable[i][it->second] << "\t";
+                cout << actionTable[i][it->second] << " \t";
         }
         for (auto it = VN2int.begin(); it != VN2int.end(); it++)
         { //goto表跳过增广文法的左部
@@ -344,7 +363,8 @@ void constructStatusSet(int choice = 0)
                     else
                     {
                         //LR(1)分析中，只有规约项的后继符才进行规约
-                        actionTable[curStatus][VT2int[tmpTerm.subsequence]] = 1000 + genNum; //同样为避免编号冲突，规约项全体加1000
+                        for (int _i = 0; _i < tmpTerm.subsequence.size(); _i++)
+                            actionTable[curStatus][VT2int[tmpTerm.subsequence[_i]]] = 1000 + genNum; //同样为避免编号冲突，规约项全体加1000
                     }
                 }
                 continue;
@@ -393,10 +413,10 @@ void constructStatusSet(int choice = 0)
 
 int main()
 {
-    initGrammar();         //初始化文法
-    VT2int["$"] = 0;       //文法中没有$符号，人为增加该终结符
-    readVnAndVt();         //读取文法中所有的VN和VT
-    converge();            //构造first和follow集
-    constructStatusSet(1); //默认LR(0)分析表构造，参数1构造SLR分析表
+    initGrammar();   //初始化文法
+    VT2int["$"] = 0; //文法中没有$符号，人为增加该终结符
+    readVnAndVt();   //读取文法中所有的VN和VT
+    converge();      //构造first和follow集
+    constructStatusSet();
     return 0;
 }
