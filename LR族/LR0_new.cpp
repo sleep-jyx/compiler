@@ -16,7 +16,6 @@ struct term
     string leftPart;
     vector<string> rightPart;
     int dotPos{-1}; //活前缀在右部的位置,初始化为-1
-
     bool operator==(const term &b) const
     {
         if (leftPart == b.leftPart && rightPart == b.rightPart)
@@ -31,14 +30,56 @@ int gotoTable[50][50];   //goto表，行表示状态，列表示非终结符
 
 void initGrammar()
 {
-    //表达式文法
-    grammar.push_back("E'->E");
+    //表达式文法,用LR(0)构造存在冲突，用SLR可以消除冲突
+    /* grammar.push_back("E'->E");
     grammar.push_back("E->E+T");
     grammar.push_back("E->T");
     grammar.push_back("T->T*F");
     grammar.push_back("T->F");
     grammar.push_back("F->(E)");
     grammar.push_back("F->i");
+    */
+    //该文法使用SLR仍有冲突
+    /*grammar.push_back("S'->S");
+    grammar.push_back("S->L=R");
+    grammar.push_back("S->R");
+    grammar.push_back("R->L");
+    grammar.push_back("L->*R");
+    grammar.push_back("L->i");
+    */
+    /*
+    grammar.push_back("S'->E");
+    grammar.push_back("E->E+E");
+    grammar.push_back("E->E-E");
+    grammar.push_back("E->E*E");
+    grammar.push_back("E->E/E");
+    grammar.push_back("E->(E)");
+    grammar.push_back("E->i");
+    */
+    //赋值语句文法
+
+    grammar.push_back("S'->A");
+    grammar.push_back("A->i=E");
+    grammar.push_back("E->@E");
+    grammar.push_back("E->E+E");
+    grammar.push_back("E->E-E");
+    grammar.push_back("E->E*E");
+    grammar.push_back("E->E/E");
+    grammar.push_back("E->(E)");
+    grammar.push_back("E->i");
+
+    //布尔表达式文法
+    /*
+    grammar.push_back("E'->E");
+    grammar.push_back("E->E&&E");
+    grammar.push_back("E->E||E");
+    grammar.push_back("E->!E");
+    grammar.push_back("E->(E)");
+    grammar.push_back("E->i");
+    grammar.push_back("E->E<E");
+    grammar.push_back("E->E>E");
+    grammar.push_back("E->E==E");
+    */
 }
 
 int mergeSet()
@@ -94,7 +135,9 @@ void closure(int statusNum)
         { //点后面是非终结符，S->·E,待约项目
             //再遍历文法，把左部为E的产生式都加入状态集
             queue<string> vn_q;
+            map<string, int> VN_readed;
             vn_q.push(Y[dot]);
+            VN_readed[Y[dot]]++;
             while (!vn_q.empty())
             {
                 string tmpX = vn_q.front();
@@ -113,8 +156,11 @@ void closure(int statusNum)
                         else if (VN2int.count(Y2[0]) != 0) //S->b·BB,待约项目
                         {
                             tmpTerm2.termType = 3;
-                            if (Y2[0] != tmpX)
+                            if (VN_readed[Y2[0]] == 0)
+                            {
                                 vn_q.push(Y2[0]);
+                                VN_readed[Y2[0]]++;
+                            }
                         }
                         if (tmpTerm2.dotPos == -1)
                             tmpTerm2.dotPos = 0; //加入活前缀
@@ -131,7 +177,7 @@ void closure(int statusNum)
 }
 
 int GOTO(int statusNum, string symbol)
-{ //由状态集statusNum读入一个符号symbol(vn或vt)
+{ //由状态集statusNum读入一个符号symbol(vn或vt)，返回转移后的项集编号
     int size = statusSet[statusNum].size();
     for (int i = 0; i < size; i++)
     {
@@ -159,10 +205,11 @@ int GOTO(int statusNum, string symbol)
                 //先加入 S->B·B
                 tmpTerm.termType = 3;
                 statusSet[globalStatusNum].push_back(tmpTerm);
+                //再进行闭包计算
+                closure(globalStatusNum);
             }
         }
     }
-    closure(globalStatusNum);
     globalStatusNum++;
     int flag = mergeSet();
     if (flag != -1) //可合并
@@ -201,8 +248,46 @@ void printStatus()
     }
 }
 
-void constructStatusSet()
+void printTable()
 {
+    //输出分析表
+    cout << " \t";
+    for (auto it = VT2int.begin(); it != VT2int.end(); it++)
+        cout << it->first << " \t";
+    for (auto it = VN2int.begin(); it != VN2int.end(); it++)
+    { //goto表跳过增广文法的左部
+        if (it->first == getVn(grammar[0].substr(0, 2)))
+            continue;
+        cout << it->first << "\t";
+    }
+    cout << endl;
+    for (int i = 0; i < globalStatusNum; i++)
+    {
+        cout << i << "\t";
+        for (auto it = VT2int.begin(); it != VT2int.end(); it++)
+        { //action，移进(大100)、规约(大1000)、接受
+            if (actionTable[i][it->second] >= 100 && actionTable[i][it->second] < 1000)
+                cout << "s" << actionTable[i][it->second] - 100 << "\t";
+            else if (actionTable[i][it->second] >= 1000 && actionTable[i][it->second] < 10000)
+                cout << "r" << actionTable[i][it->second] - 1000 << "\t";
+            else if (actionTable[i][it->second] == 10000)
+                cout << "acc\t";
+            else
+                cout << actionTable[i][it->second] << " \t";
+        }
+        //cout << " \t";
+        for (auto it = VN2int.begin(); it != VN2int.end(); it++)
+        { //goto表跳过增广文法的左部
+            if (it->first == getVn(grammar[0].substr(0, 2)))
+                continue;
+            cout << gotoTable[i][it->second] << "\t";
+        }
+        cout << endl;
+    }
+}
+
+void constructStatusSet(int choice = 0)
+{ //同步构造项集和分析表
     initI0();
     closure(0);
     queue<string> symbolToRead;
@@ -224,19 +309,71 @@ void constructStatusSet()
     {
         if (symbolToRead.front() == "sep")
         {
+            for (int ii = 0; ii < statusSet[curStatus].size(); ii++)
+            {
+                /****action表规约项构造****/
+                if (statusSet[curStatus][ii].dotPos == statusSet[curStatus][ii].rightPart.size())
+                { //判断该规约项是用哪个产生式规约的
+                    term tmpTerm = statusSet[curStatus][ii];
+                    string reduceTerm = tmpTerm.leftPart + "->";
+                    for (int ii = 0; ii < tmpTerm.rightPart.size(); ii++)
+                        reduceTerm = reduceTerm + tmpTerm.rightPart[ii];
+                    int genNum = -1;
+                    for (int ii = 0; ii < grammar.size(); ii++)
+                        if (reduceTerm == grammar[ii])
+                            genNum = ii;
+                    //接受状态
+                    if (genNum == 0)
+                        actionTable[curStatus][VT2int["$"]] = 10000;
+                    else
+                    {
+                        if (choice == 0)
+                        { //LR(0)分析中只要某状态集中存在规约项，则action表中该行所有终结符用同一产生式规约
+                            for (auto it = VT2int.begin(); it != VT2int.end(); it++)
+                            {
+                                if (actionTable[curStatus][it->second] != 0)
+                                    cout << "状态" << curStatus << "规约" << it->first << "存在冲突" << endl;
+                                actionTable[curStatus][it->second] = 1000 + genNum; //同样为避免编号冲突，规约项全体加1000
+                            }
+                        }
+                        else
+                        { //SLR分析中，只有规约产生式左部的follow集中的终结符才进行规约
+                            for (auto it = follow[VN2int[tmpTerm.leftPart]].begin(); it != follow[VN2int[tmpTerm.leftPart]].end(); it++)
+                            {
+                                if (actionTable[curStatus][VT2int[*it]] != 0)
+                                    cout << "状态" << curStatus << "规约" << *it << "存在冲突" << endl;
+                                actionTable[curStatus][VT2int[*it]] = 1000 + genNum; //同样为避免编号冲突，规约项全体加1000
+                            }
+                        }
+                    }
+                }
+                continue;
+            }
+            /****action表规约项填充完毕*****/
             curStatus++;
             symbolToRead.pop();
             continue;
         }
         int nextStatus = GOTO(curStatus, symbolToRead.front());
         cout << "I" << curStatus << "--" << symbolToRead.front() << "-->"
-             << "I" << nextStatus << endl;
+             << "I" << nextStatus;
+        //action表移入项填充
+        if (VT2int.count(symbolToRead.front()) != 0)
+        {
+            if (actionTable[curStatus][VT2int[symbolToRead.front()]] != 0)
+                cout << "(状态" << curStatus << "移进" << symbolToRead.front() << "存在冲突)";
+            actionTable[curStatus][VT2int[symbolToRead.front()]] = 100 + nextStatus;
+        }
+        else //goto表填充
+            gotoTable[curStatus][VN2int[symbolToRead.front()]] = nextStatus;
+        cout << endl;
         //新状态集入队列,指向已有的状态集的就不要入队列了
         if (nextStatus == globalStatusNum - 1)
         {
             symbolMap.clear();
             for (int ii = 0; ii < statusSet[nextStatus].size(); ii++)
             {
+                //规约项就跳过
                 if (statusSet[nextStatus][ii].dotPos == statusSet[nextStatus][ii].rightPart.size())
                     continue;
                 string symbolStr = statusSet[nextStatus][ii].rightPart[statusSet[nextStatus][ii].dotPos];
@@ -250,14 +387,35 @@ void constructStatusSet()
         }
         symbolToRead.pop();
     }
-    printStatus();
+    printStatus(); //输出状态项集
+    printTable();  //输出分析表
 }
 
 int main()
 {
-    initGrammar();   //初始化文法
-    VT2int["$"] = 0; //文法中没有$符号，人为增加该终结符
-    readVnAndVt();   //读取文法中所有的VN和VT
-    constructStatusSet();
+    initGrammar();         //初始化文法
+    VT2int["$"] = 0;       //文法中没有$符号，人为增加该终结符
+    readVnAndVt();         //读取文法中所有的VN和VT
+    converge();            //构造first和follow集
+    constructStatusSet(1); //默认LR(0)分析表构造，参数1构造SLR分析表
+
+    string code;
+    ifstream myfile("ex4Data.txt");
+    cout << "—————————————词法分析———————————————————" << endl;
+    while (getline(myfile, code)) //按行读取文件，可读取空格
+        scanner(code);            // 词法分析结束，分析结果存储在lexicalTable中
+
+    //需要三个栈：状态栈、符号栈、语义栈
+    /*cout << "—————————————语法分析———————————————————" << endl;
+    stack<int> status;          //状态栈
+    stack<string> op, semantic; //符号栈、语义栈
+    int pointer = 0;            //输入串指针
+    status.push(0);             //状态栈初始化
+    op.push("#");               //符号栈初始化
+    while (!op.empty())
+    {
+        int curStatus = status.top();         //当前状态
+        word curWord = lexicalTable[pointer]; //当前读头词法分析所得二元组
+    }*/
     return 0;
 }

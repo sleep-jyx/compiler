@@ -7,9 +7,9 @@ using namespace std;
 // 关键字表置初始值
 string Cppkeyword[100] = {"#", "标识符(变量名)", "整数", "实数", "字符常量", "+", "-", "*", "/", "<",
                           "<=", "==", "!=", ">", ">=", "&", "&&", "||", "=", "(",
-                          ")", "[", "]", "{", "}", ":", ";", ",", "void", "int",
-                          "float", "char", "if", "else", "while", "do", "for", "include", "iostream", "using",
-                          "namespace", "std", "main", "return", "null"};
+                          ")", "[", "]", "{", "}", ":", ";", ",", "@", "!",
+                          "void", "int", "float", "char", "if", "else", "while", "do", "for", "include",
+                          "iostream", "using", "namespace", "std", "main", "return", "null"};
 class word
 {
 public:
@@ -25,7 +25,7 @@ word letterAnalysis(const string &subCode)
 {
     word item;
     int isKeyword = 0;
-    for (int i = 28; i <= 43; i++)
+    for (int i = 30; i <= 46; i++)
     {
         if (subCode.substr(0, Cppkeyword[i].length()) == Cppkeyword[i])
         {
@@ -142,6 +142,8 @@ word charAnalysis(string subCode)
         {
             item.syn = 12;
         }
+        else
+            item.syn = 29;
         break;
 
     case '>':
@@ -198,6 +200,9 @@ word charAnalysis(string subCode)
     case ',':
         item.syn = 27;
         break;
+    case '@':
+        item.syn = 28;
+        break;
     }
     item.token = Cppkeyword[item.syn];
     return item;
@@ -235,4 +240,3 @@ void scanner(const string &code)
         cout << "(" << item.syn << "," << item.token << ")" << endl;
     }
 }
-
