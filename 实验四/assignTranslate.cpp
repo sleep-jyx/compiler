@@ -2,16 +2,509 @@
 #include <cstdio>
 #include <vector>
 #include <string>
+#include <string.h>
 #include <map>
 #include <set>
 #include <stack>
 #include <queue>
 #include <algorithm>
-#include "../Util/util.cpp"
+#include <fstream>
 using namespace std;
 
-struct term
+/********************************************************
+ *                                                      *
+ *                第一部分：词法分析                       *  
+ *                                                      *
+ *******************************************************/
+// 关键字表置初始值
+string Cppkeyword[100] = {"#", "标识符(变量名)", "整数", "实数", "字符常量", "+", "-", "*", "/", "<",
+                          "<=", "==", "!=", ">", ">=", "&", "&&", "||", "=", "(",
+                          ")", "[", "]", "{", "}", ":", ";", ",", "@", "!",
+                          "void", "int", "float", "char", "if", "else", "while", "do", "for", "include",
+                          "iostream", "using", "namespace", "std", "main", "return", "null"};
+class word
 {
+public:
+    int syn{};
+    string token;
+};
+//存储词法分析结果
+word lexicalTable[1000];
+int lexicalTableLen = 0;
+
+// 处理关键词和变量的函数
+word letterAnalysis(const string &subCode)
+{
+    word item;
+    int isKeyword = 0;
+    for (int i = 30; i <= 46; i++)
+    {
+        if (subCode.substr(0, Cppkeyword[i].length()) == Cppkeyword[i])
+        {
+            item.syn = i;
+            isKeyword = 1;
+        }
+    }
+    /* 不用上述for循环的话就得如下一一列举，如果关键词数目较多，就要写很多低级代码
+    if (subCode.substr(0, 4) == "void")
+    {
+        item.syn = 28;
+    }
+    else if (subCode.substr(0, 3) == "int")
+    {
+        item.syn = 29;
+    }
+    else if (subCode.substr(0, 5) == "float")
+*/
+    if (isKeyword == 0)
+    {
+        // 如果不是上述关键词，一律视为变量名
+        for (int i = 0; i <= subCode.length(); ++i)
+        { //找到第一个不是数字、字母、下划线的位置
+            if (!(subCode[i] >= 'a' && subCode[i] <= 'z' || subCode[i] >= '0' && subCode[i] <= '9' || subCode[i] == '_'))
+            {
+                item.syn = 1; //1号位存储变量名
+                Cppkeyword[item.syn] = subCode.substr(0, i);
+                break;
+            }
+        }
+    }
+    item.token = Cppkeyword[item.syn];
+    return item;
+}
+
+// 处理数字的函数
+word numberAnalysis(string subCode)
+{
+    word item;
+    for (int i = 0; i <= subCode.length(); ++i)
+    {
+        // 截取到第一个非数字和小数点字符
+        if (!(subCode[i] >= '0' && subCode[i] <= '9' || subCode[i] == '.'))
+        {
+            string curNum = subCode.substr(0, i);
+            if (curNum.find('.') == string::npos) //没读到'.'返回值为很大的数，若读到返回值是第一次出现的下标
+                item.syn = 2;                     //2号位存整数
+            else
+                item.syn = 3; //3号位存实数
+
+            Cppkeyword[item.syn] = curNum;
+            break;
+        }
+    }
+    item.token = Cppkeyword[item.syn];
+    return item;
+}
+
+// 处理字符常量的函数
+word strAnalysis(string subCode)
+{ //"hello"<<endl;
+    word item;
+    int nextindex = subCode.find_first_of('"', 1); //找到第二个"出现的位置下标
+    item.syn = 4;                                  //字符常量置为4
+    Cppkeyword[item.syn] = subCode.substr(0, nextindex + 1);
+
+    item.token = Cppkeyword[item.syn];
+    return item;
+}
+
+// 处理字符的函数
+word charAnalysis(string subCode)
+{
+    word item;
+    switch (subCode[0])
+    {
+    case '#':
+        item.syn = 0;
+        break;
+    case '+':
+        item.syn = 5;
+        break;
+    case '-':
+        item.syn = 6;
+        break;
+    case '*':
+        item.syn = 7;
+        break;
+    case '/':
+        item.syn = 8;
+        break;
+    case '<':
+        if (subCode[1] == '=')
+        {
+            item.syn = 10;
+        }
+        else
+        {
+            item.syn = 9;
+        }
+        break;
+    case '=':
+        if (subCode[1] == '=')
+        {
+            item.syn = 11;
+        }
+        else
+        {
+            item.syn = 18;
+        }
+        break;
+    case '!':
+        if (subCode[1] == '=')
+        {
+            item.syn = 12;
+        }
+        else
+            item.syn = 29;
+        break;
+
+    case '>':
+        if (subCode[1] == '=')
+        {
+            item.syn = 14;
+        }
+        else
+        {
+            item.syn = 13;
+        }
+        break;
+    case '&':
+        if (subCode[1] == '&')
+        {
+            item.syn = 16;
+        }
+        else
+        {
+            item.syn = 15;
+        }
+        break;
+    case '|':
+        if (subCode[1] == '|')
+        {
+            item.syn = 17;
+        }
+        break;
+
+    case '(':
+        item.syn = 19;
+        break;
+    case ')':
+        item.syn = 20;
+        break;
+    case '[':
+        item.syn = 21;
+        break;
+    case ']':
+        item.syn = 22;
+        break;
+    case '{':
+        item.syn = 23;
+        break;
+    case '}':
+        item.syn = 24;
+        break;
+    case ':':
+        item.syn = 25;
+        break;
+    case ';':
+        item.syn = 26;
+        break;
+    case ',':
+        item.syn = 27;
+        break;
+    case '@':
+        item.syn = 28;
+        break;
+    }
+    item.token = Cppkeyword[item.syn];
+    return item;
+}
+
+// 词法分析
+void scanner(const string &code)
+{ //if a=1;
+
+    for (int i = 0; i < code.length(); ++i)
+    {
+        word item;
+        if (code[i] >= 'a' && code[i] <= 'z')
+        {
+            // 处理单词,假设句子是 if a=1;进行单词分析后返回“if”,i后移了两位，这点在该函数最后有做处理
+            item = letterAnalysis(code.substr(i, code.length() - i + 1));
+        }
+        else if (code[i] >= '0' and code[i] <= '9')
+        {
+            // 处理数字
+            item = numberAnalysis(code.substr(i, code.length() - i + 1));
+        }
+        else if (code[i] == ' ')
+        {
+            // 如果是空格，直接跳过
+            continue;
+        }
+        else
+        {
+            // 处理特殊符号
+            item = charAnalysis(code.substr(i, code.length() - i + 1));
+        }
+        i += int(item.token.length()) - 1;
+        lexicalTable[lexicalTableLen++] = item; //词法处理完的结果存入lexicalTable中
+        cout << "(" << item.syn << "," << item.token << ")" << endl;
+    }
+}
+
+/****************************************************************
+ *                                                              *
+ *        第二部分、语法分析前的一些准备工作,主要包括:                 *      
+ *      (1) 扫描文法，获取文法中出现的所有的Vn和Vt                    *  
+ *      (2) 将文法中的产生式拆分为左部、右部,其中右部采用vector进行保存  *
+ *      (3) 构造所有Vn和Vt的first集和follow集                      * 
+ *                                                              *
+ ****************************************************************/
+vector<string> grammar;          //存储文法
+map<string, int> VN2int, VT2int; //VN、VT映射为下标索引
+int symbolNum = 0;
+map<string, bool> nullable; //各终结符或非终结符是否可空
+set<string> first[50];      //存储各Vn和Vt的first集，没错，Vt也构造first集，就是其自身
+set<string> follow[50];     //存储各Vn和Vt的follow集，Vt的follow都是空，240~263行取消注释可查看Vt的first和follow集
+
+string getVn(string grammar)
+{ //获取文法中的非终结符
+    if (grammar[1] == '\'')
+    { //带'的非终结符,如 E',T'
+        return grammar.substr(0, 2);
+    }
+    else
+    { //不带'的正常非终结符，如E，T
+        return grammar.substr(0, 1);
+    }
+}
+
+string getVt(string grammar)
+{ //获取文法中的终结符
+    //Cppkeyword[1] = "i";
+    for (int k = 0; k <= 46; k++)
+    {
+        string Vt = grammar.substr(0, Cppkeyword[k].length());
+        if (Vt == Cppkeyword[k])
+        {
+            return Vt;
+        }
+    }
+    //如果运行到这里，说明这个终结符不是关键词表里的，认为小写字母也属于终结符
+    if (grammar[0] >= 'a' && grammar[0] <= 'z')
+    {
+        return grammar.substr(0, 1);
+    }
+}
+void readVnAndVt()
+{
+    //扫描一个产生式，识别所有的非终结符和终结符
+    for (int i = 0; i < grammar.size(); i++)
+    {
+        for (int j = 0; j < grammar[i].length(); j++)
+        {
+            if (grammar[i][j] >= 'A' && grammar[i][j] <= 'Z')
+            { //非终结符一般大写
+                string Vn = getVn(grammar[i].substr(j, 2));
+                if (VN2int[Vn] == 0)
+                    VN2int[Vn] = ++symbolNum;
+                j = j + Vn.length() - 1;
+            }
+            else if (grammar[i].substr(j, 2) == "->")
+            {
+                j = j + 2 - 1;
+            }
+            else
+            { //扫描产生式右部的可能的终结符(关键词表)
+                string Vt = getVt(grammar[i].substr(j, grammar[i].length() - j));
+                if (VT2int[Vt] == 0)
+                    //该终结符第一次出现,将该终结符映射为下标索引
+                    VT2int[Vt] = ++symbolNum;
+                j = j + Vt.length() - 1;
+            }
+        }
+    }
+
+    cout << "非终结符VN:" << endl;
+    for (auto it = VN2int.begin(); it != VN2int.end(); it++)
+    {
+        cout << "索引下标:" << it->second << "\t名称：" << it->first << endl;
+    }
+    cout << "终结符VT:" << endl;
+    for (auto it = VT2int.begin(); it != VT2int.end(); it++)
+    {
+        cout << "索引下标:" << it->second << "\t名称：" << it->first << endl;
+    }
+}
+
+vector<string> splitGrammarIntoYi(string rightGrama)
+{ //将产生式的右部(左部->右部拆分)：X->Y1Y2...Yk
+    vector<string> Y;
+    for (int j = 0; j < rightGrama.length(); j++)
+    {
+        if (rightGrama[j] >= 'A' && rightGrama[j] <= 'Z')
+        { //非终结符
+            string Vn = getVn(rightGrama.substr(j, 2));
+            Y.push_back(Vn);
+            j = j + Vn.length() - 1;
+        }
+        else
+        { //终结符
+            string Vt = getVt(rightGrama.substr(j, rightGrama.length() - j));
+            Y.push_back(Vt);
+            j = j + Vt.length() - 1;
+        }
+    }
+    return Y;
+}
+
+void split(string grama, string &X, vector<string> &Y)
+{
+    int delimiterIndex = grama.find("->");
+    X = grama.substr(0, delimiterIndex);
+    string rightGrama = grama.substr(delimiterIndex + 2, grama.length() - delimiterIndex - 2);
+    Y = splitGrammarIntoYi(rightGrama);
+}
+
+bool allNullable(vector<string> Y, int left, int right)
+{ //判断 Y[left]...Y[right]是否全可空
+    if (left >= Y.size() || left > right || right < 0)
+        return true;
+    for (int i = left; i <= right; i++)
+    {
+        if (nullable[Y[i]] == false)
+            return false;
+    }
+    return true;
+}
+
+void getFirstFollowSet()
+{
+    /*计算FIRST、FOLLOW、nullable的算法*/
+    for (auto it = VT2int.begin(); it != VT2int.end(); it++)
+    { //对每一个终结符Z，first[Z]={Z}
+        string Vt = it->first;
+        int Vt_index = it->second;
+        first[Vt_index].insert(Vt);
+    }
+    for (int grammarIndex = 0; grammarIndex < grammar.size(); grammarIndex++)
+    {
+        //对于每个产生式：X->Y1Y2...Yk
+        string X;
+        vector<string> Y;
+        int delimiterIndex = grammar[grammarIndex].find("->");
+        X = grammar[grammarIndex].substr(0, delimiterIndex);                                                                       //以"->"为界，分隔产生式
+        string rightGrama = grammar[grammarIndex].substr(delimiterIndex + 2, grammar[grammarIndex].length() - delimiterIndex - 2); //提取左部产生式
+        Y = splitGrammarIntoYi(rightGrama);
+
+        int k = Y.size();
+        nullable["null"] = true;
+        //如果所有Yi都是可空的，则nullable[X]=true
+        if (allNullable(Y, 0, k - 1))
+        {
+            nullable[X] = true;
+        }
+
+        for (int i = 0; i < k; i++)
+        {
+            //如果Y0...Y(i-1)都是可空的(言外之意Yi不空),则first[X] = first[X]∪first[Yi] (1)
+            if (nullable[Y[i]] == false && allNullable(Y, 0, i - 1))
+            {
+                if (i <= k - 1)
+                {
+                    set<string> setX = first[VN2int[X]];
+                    //判断Yi是终结符还是非终结符
+                    set<string> setY = VT2int.count(Y[i]) != 0 ? first[VT2int[Y[i]]] : first[VN2int[Y[i]]];
+                    set_union(setX.begin(), setX.end(), setY.begin(), setY.end(), inserter(setX, setX.begin())); //(1)
+                    first[VN2int[X]] = setX;
+                }
+            }
+            //如果Y(i+1)...Yk都是可空的(言外之意Y0..Y(i-1)都不空)，则follow[Yi] = follow[Yi]∪follow[X] (2)
+            if (allNullable(Y, i + 1, k - 1))
+            {
+                set<string> setX = follow[VN2int[X]];
+                //判断Yi是终结符还是非终结符
+                set<string> setY = VT2int.count(Y[i]) ? follow[VT2int[Y[i]]] : follow[VN2int[Y[i]]];
+                set_union(setX.begin(), setX.end(), setY.begin(), setY.end(), inserter(setY, setY.begin()));
+                VT2int.count(Y[i]) ? follow[VT2int[Y[i]]] : follow[VN2int[Y[i]]] = setY;
+            }
+
+            for (int j = i + 1; j < k; j++)
+            {
+                //如果Y(i+1)...Y(j-1)都是可空的(言外之意Yj不空),则follow[Yi] = follow[Yi]∪first[Yj] (3)
+                if (nullable[Y[j]] == false && allNullable(Y, i + 1, j - 1))
+                {
+                    if (j <= k - 1)
+                    {
+                        set<string> setYi = VT2int.count(Y[i]) ? follow[VT2int[Y[i]]] : follow[VN2int[Y[i]]];
+                        set<string> setYj = VT2int.count(Y[j]) ? first[VT2int[Y[j]]] : first[VN2int[Y[j]]];
+                        set_union(setYi.begin(), setYi.end(), setYj.begin(), setYj.end(), inserter(setYi, setYi.begin()));
+                        VT2int.count(Y[i]) ? follow[VT2int[Y[i]]] : follow[VN2int[Y[i]]] = setYi;
+                    }
+                }
+            }
+        }
+    }
+}
+
+void converge()
+{ //迭代计算first和follow集，直到收敛
+    set<string> oldFirst[50];
+    set<string> oldFollow[50];
+    int isConverge = 1;
+    string _vn = getVn(grammar[0].substr(0, 2));
+    //这是一个可以手动修改的地方，很多教材的终止符不一样，这里统一一下，都用#作为终止符
+    follow[VN2int[_vn]].insert("#");
+    int times = 1; //经过多少轮才收敛
+    do
+    { //非终结符的first、follow不再变化则收敛
+        isConverge = 1;
+        getFirstFollowSet();
+        //VN的状态
+        for (auto it = VN2int.begin(); it != VN2int.end(); it++)
+        {
+            int vnindex = it->second;
+            if (oldFirst[vnindex].size() != first[vnindex].size() || oldFollow[vnindex].size() != follow[vnindex].size())
+                isConverge = 0;
+            //保存旧状态，以便之后和新状态比较是否变化判断收敛与否
+            oldFirst[vnindex] = first[vnindex];
+            oldFollow[vnindex] = follow[vnindex];
+        }
+    } while (isConverge != 1);
+    //输出最终结果
+    cout << endl;
+    for (auto it = VN2int.begin(); it != VN2int.end(); it++)
+    {
+        int vnindex = it->second;
+        if (oldFirst[vnindex].size() != first[vnindex].size() || oldFollow[vnindex].size() != follow[vnindex].size())
+        {
+            isConverge = 0;
+        }
+        //输出状态
+        cout << it->first << "的first集：\t";
+        for (auto first_it = first[vnindex].begin(); first_it != first[vnindex].end(); first_it++)
+        {
+            cout << *first_it << " ";
+        }
+        cout << "\t" << it->first << "的follow集：\t";
+        for (auto follow_it = follow[vnindex].begin(); follow_it != follow[vnindex].end(); follow_it++)
+        {
+            cout << *follow_it << " ";
+        }
+        cout << endl;
+    }
+}
+
+/****************************************************************
+ *                                                              *
+ *                  第三部分：构造文法的LR1分析表                   *
+ *          关键函数：(1) closure():计算项集的LR1闭包               *
+ *                  (2) GOTO():由项集I读入Vn或Vt转向项集J          *
+ *                                                              *
+ ****************************************************************/
+struct term
+{                 //LR1项集内部的项
     int termType; //移进项目、待约项目、规约项目
     string leftPart;
     vector<string> rightPart;
@@ -43,7 +536,7 @@ void initGrammar()
     grammar.push_back("F->(E)");
     grammar.push_back("F->i");
     */
-    //该文法使用SLR仍有冲突(哈工大mooc例子)，使用LR1分析验证正确
+    //该文法使用SLR仍有冲突(哈工大mooc例子)，使用LR1分析无冲突
     /*
     grammar.push_back("S'->S");
     grammar.push_back("S->L=R");
@@ -92,6 +585,7 @@ void initGrammar()
     */
 }
 
+//该函数作用:项集I读入Vn或Vt可能会生成新的项集J，但也有可能指向已有项集，该函数就是判断是否指向已有项集
 int mergeSet()
 {
     int flag = -1; //假定不可以进行合并
@@ -119,8 +613,8 @@ void initI0()
     string X;
     vector<string> Y;
     split(grammar[0], X, Y);
-    if (firstTerm.dotPos == -1) //没有活前缀"·"
-        firstTerm.dotPos = 0;
+    if (firstTerm.dotPos == -1) //如果没有活前缀"·"
+        firstTerm.dotPos = 0;   //就添加活前缀
     firstTerm.leftPart = X;
     firstTerm.rightPart = Y;
     firstTerm.subsequence.push_back("#");
@@ -203,38 +697,9 @@ void closure(int statusNum)
         }
         termQueue.pop();
     }
-    //合并后继符
-    /*vector<term> newSet; //合并后继符的项集
-    map<term, int> mergedTermMap;
-    term curTerm = statusSet[statusNum][0];
-    term cleanTerm = statusSet[statusNum][0];
-    newSet.push_back(curTerm);
-    cleanTerm.subsequence.clear(); //map中不保留后继符
-    mergedTermMap[cleanTerm]++;
-
-    int size = statusSet[statusNum].size();
-    for (int i = 1; i < size; i++)
-    {
-        curTerm = statusSet[statusNum][i];
-        cleanTerm = statusSet[statusNum][i];
-        cleanTerm.subsequence.clear();
-        if (mergedTermMap[cleanTerm] != 0)
-        {
-            for(int i=0;i<curTerm.subsequence.size();i++)
-            {
-
-            }
-        }
-        else
-        {
-            newSet.push_back(curTerm);
-            mergedTermMap[cleanTerm]++;
-        }
-        
-    }*/
 }
 
-//GOTO函数无须变动，不管是什么分析，都是从集合I读入一个符号经过闭包运算得到集合J。goto函数内部调用了closure()。
+//GOTO函数无须变动，不管是LR0,SLR,LR1分析，都是从集合I读入一个符号经过闭包运算得到集合J。goto函数内部调用了closure()。
 int GOTO(int statusNum, string symbol)
 { //由状态集statusNum读入一个符号symbol(vn或vt)，返回转移后的项集编号
     int size = statusSet[statusNum].size();
@@ -444,6 +909,17 @@ void constructStatusSet(int choice = 0)
     printTable();  //输出分析表
 }
 
+/***********************************************************************
+ *                                                                     *
+ * 第四部分：使用第三部分生成的LR1分析表对赋值表达式进行语法分析，               *
+ *         边语法分析边进行语法制导翻译，生成四元式序列和汇编代码               *
+ *                                                                     *
+ *   (1) GEN():输出四元式；并将目的操作数与符号表中的相应符号进行绑定或注册      *
+ *   (2) translate():对输入串边进行语法分析边翻译为四元式序列(规约时翻译)      *
+ *   (3) translateToAssembly():根据语义子程序的汇编形式将四元式翻译为汇编代码  *
+ *                                                                     *
+ ***********************************************************************/
+
 struct Symbol
 {
     string varName;       //变量名
@@ -477,8 +953,7 @@ void GEN(string op, int arg1, int arg2, Symbol &result)
     cout << "," << result.varName << ")" << endl;
     formula.push_back(FourYuanFormula{op, arg1, arg2, result}); //插入到四元式序列中
     if (op == "@")
-    {
-        //将result注册进入符号表
+    { //将临时变量result注册进入符号表
         result.varName;
         result.PLACE = symbolTable.size();
         result.valueStr = "-" + symbolTable[arg1].valueStr;
@@ -486,21 +961,21 @@ void GEN(string op, int arg1, int arg2, Symbol &result)
         ENTRY[result.varName] = result.PLACE;
     }
     if (op == "+")
-    { //将result注册进入符号表
+    { //将临时变量result注册进入符号表
         result.PLACE = symbolTable.size();
         result.valueStr = to_string(stoi(symbolTable[arg1].valueStr) + stoi(symbolTable[arg2].valueStr));
         symbolTable.push_back(result);
         ENTRY[result.varName] = result.PLACE;
     }
     if (op == "-")
-    { //将result注册进入符号表
+    { //将临时变量result注册进入符号表
         result.PLACE = symbolTable.size();
         result.valueStr = to_string(stoi(symbolTable[arg1].valueStr) - stoi(symbolTable[arg2].valueStr));
         symbolTable.push_back(result);
         ENTRY[result.varName] = result.PLACE;
     }
     if (op == "*")
-    { //将result注册进入符号表
+    { //将临时变量result注册进入符号表
         result.PLACE = symbolTable.size();
         result.valueStr = to_string(stoi(symbolTable[arg1].valueStr) * stoi(symbolTable[arg2].valueStr));
         symbolTable.push_back(result);
@@ -513,7 +988,7 @@ void GEN(string op, int arg1, int arg2, Symbol &result)
         symbolTable.push_back(result);
         ENTRY[result.varName] = result.PLACE;
     }
-    if (op == "=")
+    if (op == "=") //这个result不是临时变量了，故不用注册进入符号表，只进行绑定
         result.valueStr = symbolTable[arg1].valueStr;
 }
 
@@ -729,6 +1204,6 @@ int main()
     while (getline(myfile, code)) //按行读取文件，可读取空格
         scanner(code);            //词法分析结束，分析结果存储在lexicalTable中
     translate();                  //赋值表达式源程序翻译为四元式序列
-    translateToAssembly();
+    translateToAssembly();        //将四元式序列翻译为汇编代码
     return 0;
 }

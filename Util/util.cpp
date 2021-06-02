@@ -202,7 +202,8 @@ void converge()
     set<string> oldFollow[50];
     int isConverge = 1;
     string _vn = getVn(grammar[0].substr(0, 2));
-    follow[VN2int[_vn]].insert("$");
+    //这是一个可以手动修改的地方，很多教材的终止符不一样，这里统一一下，都用#作为终止符
+    follow[VN2int[_vn]].insert("#");
     int times = 1; //经过多少轮才收敛
     do
     { //非终结符的first、follow不再变化则收敛

@@ -57,7 +57,7 @@ void initGrammar()
     grammar.push_back("E->i");
     */
     //赋值语句文法
-
+    /*
     grammar.push_back("S'->A");
     grammar.push_back("A->i=E");
     grammar.push_back("E->@E");
@@ -67,6 +67,10 @@ void initGrammar()
     grammar.push_back("E->E/E");
     grammar.push_back("E->(E)");
     grammar.push_back("E->i");
+    */
+    grammar.push_back("S'->S");
+    grammar.push_back("S->S(S)");
+    grammar.push_back("S->null");
 
     //布尔表达式文法
     /*
@@ -393,20 +397,20 @@ void constructStatusSet(int choice = 0)
 
 int main()
 {
-    initGrammar();         //初始化文法
-    VT2int["$"] = 0;       //文法中没有$符号，人为增加该终结符
-    readVnAndVt();         //读取文法中所有的VN和VT
-    converge();            //构造first和follow集
-    constructStatusSet(1); //默认LR(0)分析表构造，参数1构造SLR分析表
+    initGrammar();        //初始化文法
+    VT2int["$"] = 0;      //文法中没有$符号，人为增加该终结符
+    readVnAndVt();        //读取文法中所有的VN和VT
+    converge();           //构造first和follow集
+    constructStatusSet(); //默认LR(0)分析表构造，参数1构造SLR分析表
 
-    string code;
+    /*string code;
     ifstream myfile("ex4Data.txt");
     cout << "—————————————词法分析———————————————————" << endl;
     while (getline(myfile, code)) //按行读取文件，可读取空格
         scanner(code);            // 词法分析结束，分析结果存储在lexicalTable中
 
     //需要三个栈：状态栈、符号栈、语义栈
-    /*cout << "—————————————语法分析———————————————————" << endl;
+    cout << "—————————————语法分析———————————————————" << endl;
     stack<int> status;          //状态栈
     stack<string> op, semantic; //符号栈、语义栈
     int pointer = 0;            //输入串指针

@@ -10,6 +10,9 @@
         "shared_mutex": "cpp",
         "sstream": "cpp",
         "streambuf": "cpp",
-        "ostream": "cpp"
+        "ostream": "cpp",
+        "bitset": "cpp",
+        "complex": "cpp",
+        "regex": "cpp"
     }
 }
