@@ -27,10 +27,11 @@ struct term
         return false;
     }
 };
+const int maxN = 200;
 vector<term> statusSet[50]; //项集
 int globalStatusNum = 1;
-int actionTable[50][50]; //action表，行表示状态，列表示终结符
-int gotoTable[50][50];   //goto表，行表示状态，列表示非终结符
+int actionTable[maxN][maxN]; //action表，行表示状态，列表示终结符
+int gotoTable[maxN][maxN];   //goto表，行表示状态，列表示非终结符
 
 void initGrammar()
 {
@@ -61,7 +62,7 @@ void initGrammar()
 */
     //赋值语句文法
 
-    grammar.push_back("S'->A");
+    grammar.push_back("S->A");
     grammar.push_back("A->i=E");
     grammar.push_back("E->@E");
     grammar.push_back("E->E+E");
@@ -70,7 +71,10 @@ void initGrammar()
     grammar.push_back("E->E/E");
     grammar.push_back("E->(E)");
     grammar.push_back("E->i");
-
+    grammar.push_back("E->!E");
+    grammar.push_back("E->E>E");
+    grammar.push_back("E->E==E");
+    grammar.push_back("E->E<E");
     /*
     //习题册P184习题,成功构造(另外发现：如果程序没错的话，就是题目给的答案有点问题)
     grammar.push_back("Z->S");
