@@ -1048,6 +1048,9 @@ void translate()
                 curStatus = status.top();
                 status.push(gotoTable[curStatus][VN2int[op.top().varName]]);
 
+                semantic.pop();
+                i.varName = semantic.top();
+                semantic.pop();
                 GEN("=", E.PLACE, -1, i);
             }
             else if (reduceGrammaIndex == 2)
@@ -1111,7 +1114,7 @@ void translate()
                 status.push(gotoTable[curStatus][VN2int[op.top().varName]]);
 
                 op.top().PLACE = ENTRY[semantic.top()]; //E.PLACE = ENTRY(i)
-                semantic.pop();
+                //semantic.pop();
             }
             else if (reduceGrammaIndex == 8)
             { //E->i
