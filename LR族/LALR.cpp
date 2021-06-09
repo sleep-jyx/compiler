@@ -535,17 +535,17 @@ void initGrammar()
     grammar.push_back("T->T*F");
     grammar.push_back("T->F");
     grammar.push_back("F->(E)");
-    grammar.push_back("F->i");*/
-
+    grammar.push_back("F->i");
+    */
     //该文法使用SLR仍有冲突(哈工大mooc例子)，使用LR1分析无冲突
-
+    /*
     grammar.push_back("S'->S");
     grammar.push_back("S->L=R");
     grammar.push_back("S->R");
     grammar.push_back("L->*R");
     grammar.push_back("L->i");
     grammar.push_back("R->L");
-
+*/
     //龙书本科版，LR1例子,验证正确
     /*
     grammar.push_back("S'->S");
@@ -564,17 +564,19 @@ void initGrammar()
     grammar.push_back("B->c");
     */
     //赋值语句文法
-    /*
-    grammar.push_back("S'->A");
+
+    grammar.push_back("S->A");
     grammar.push_back("A->i=E");
     grammar.push_back("E->@E");
-    grammar.push_back("E->E*E");
-    grammar.push_back("E->E/E");
     grammar.push_back("E->E+E");
     grammar.push_back("E->E-E");
-    grammar.push_back("E->(E)");
-    grammar.push_back("E->i");
-*/
+    grammar.push_back("E->T");
+    grammar.push_back("T->T*F");
+    grammar.push_back("T->T/F");
+    grammar.push_back("T->F");
+    grammar.push_back("F->(E)");
+    grammar.push_back("F->i");
+
     /*
     //习题册P184习题,成功构造(另外发现：如果程序没错的话，就是题目给的答案有点问题)
     grammar.push_back("Z->S");
@@ -762,12 +764,14 @@ void printStatus()
     //输出状态集
     for (int i = 0; i < globalStatusNum; i++)
     {
+        if (statusSet[i].size() == 0)
+            continue;
         cout << "┌───────────────────────┐" << endl;
         cout << "│      I" << i << "\t\t│" << endl;
         cout << "├───────────────────────┤" << endl;
         for (auto it = statusSet[i].begin(); it != statusSet[i].end(); it++)
         {
-            cout << "│";
+            cout << " \t";
             cout << it->leftPart << "->";
             for (int j = 0; j < it->rightPart.size(); j++)
             {
@@ -784,7 +788,7 @@ void printStatus()
                 else
                     cout << "_" << it->subsequence[j];
             }
-            cout << "     \t│" << endl;
+            cout << "     \t" << endl;
         }
 
         cout << "└───────────────────────┘" << endl;
@@ -793,7 +797,7 @@ void printStatus()
 
 void printTable()
 {
-    //输出分析表
+    //输出分析表，表头
     cout << " \t";
     for (auto it = VT2int.begin(); it != VT2int.end(); it++)
         cout << it->first << "  \t";
@@ -804,8 +808,11 @@ void printTable()
         cout << it->first << "  \t";
     }
     cout << endl;
+    //输出表内容
     for (int i = 0; i < globalStatusNum; i++)
     {
+        if (statusSet[i].size() == 0)
+            continue;
         cout << i << "\t";
         for (auto it = VT2int.begin(); it != VT2int.end(); it++)
         { //action，移进(大20000)、规约(大30000)、接受项为10000
@@ -916,6 +923,91 @@ void constructStatusSet(int choice = 0)
         }
         symbolToRead.pop();
     }
+    printStatus(); //输出状态项集
+    printTable();  //输出分析表
+}
+
+void LALR()
+{
+    cout << "———————————构造LALR分析表———————————————————" << endl;
+    int merged[maxN];               //记录已经被合并的状态集
+    fill(merged, merged + maxN, 0); //全0初始化
+    map<int, int> mergedTo;         //记录那些被合并的状态集都被并入哪些状态集了
+    int flag = -1;                  //首先假定状态集I的同心项目集和状态集J不一样
+    for (int i = 0; i < globalStatusNum; i++)
+    {
+        if (merged[i] == 1)
+            continue;
+        for (int j = i + 1; j < globalStatusNum; j++)
+        {
+            if (merged[j] == 1)
+                continue;
+            if (statusSet[i].size() != statusSet[j].size())
+                continue;
+            flag = j; //状态集IJ此时的大小一样，假设可以相同，进一步一项项判断
+            for (int k = 0; k < statusSet[j].size(); k++)
+            {
+                if (!(statusSet[i][k].leftPart == statusSet[j][k].leftPart && statusSet[i][k].rightPart == statusSet[j][k].rightPart && statusSet[i][k].dotPos == statusSet[j][k].dotPos))
+                    flag = -1;
+            }
+            if (flag != -1)
+            { //状态集I和状态集J是同心状态集，合并，也就是合并后继符
+                for (int m = 0; m < statusSet[i].size(); m++)
+                { //状态集I的第m项的第n个后继符
+                    map<string, int> subsequenceMap;
+                    for (int n = 0; n < statusSet[i][m].subsequence.size(); n++)
+                        subsequenceMap[statusSet[i][m].subsequence[n]]++;
+                    for (int n = 0; n < statusSet[j][m].subsequence.size(); n++)
+                    {
+                        if (subsequenceMap.count(statusSet[j][m].subsequence[n]) == 0)
+                            statusSet[i][m].subsequence.push_back(statusSet[j][m].subsequence[n]);
+                    }
+                    subsequenceMap.clear();
+                }
+                cout << "同心状态集:i=" << i << " j=" << j << endl;
+                mergedTo[j] = i;
+                //将状态集J的分析表也并入状态集I，GOTO不会有冲突，也不会有规约-移进冲突，可能存在规约-规约冲突(如果存在则不是LALR文法)
+                for (auto it = VT2int.begin(); it != VT2int.end(); it++)
+                { //只要把状态集J可能的规约项填入状态集I的action表中相应位置就可以了
+                    if (actionTable[j][it->second] >= 1000 && actionTable[j][it->second] < 10000)
+                    {
+                        if (actionTable[i][it->second] == 0)
+                            actionTable[i][it->second] = actionTable[j][it->second];
+                        else if (actionTable[i][it->second] >= 1000 && actionTable[i][it->second] < 10000 && actionTable[i][it->second] != actionTable[j][it->second])
+                        { //规约-规约冲突得是两个不同的规约，同一规约不算冲突
+                            cout << "产生规约-规约冲突，不是LALR文法" << endl;
+                        }
+                    }
+                }
+                //因为状态集J要被合并了，所以之后分析表中如果有项目是向状态集J移进的，改为向状态集I移进；GOTO也是
+                //done in other place:指向转移的功能在双重循环外部完成，不然时间复杂度高
+                //已经将状态集J并入状态集I,该删除状态集J了
+                statusSet[j].clear();
+                merged[j] = 1;
+            }
+        }
+    }
+
+    for (int j = 0; j < globalStatusNum; j++)
+    {
+        if (merged[j] == 1)
+            continue;
+        for (auto it = VT2int.begin(); it != VT2int.end(); it++)
+        {
+            if (actionTable[j][it->second] >= 100 && actionTable[j][it->second] < 1000 && merged[actionTable[j][it->second] - 100] == 1)
+            { //是移进项，且该移进项指向的是被合并的状态集
+                actionTable[j][it->second] = mergedTo[actionTable[j][it->second] - 100] + 100;
+            }
+        }
+        for (auto it = VN2int.begin(); it != VN2int.end(); it++)
+        {
+            if (merged[gotoTable[j][it->second]] == 1)
+            { //是移进项，且该移进项指向的是被合并的状态集
+                gotoTable[j][it->second] = mergedTo[gotoTable[j][it->second]];
+            }
+        }
+    }
+
     printStatus(); //输出状态项集
     printTable();  //输出分析表
 }
@@ -1085,8 +1177,8 @@ void translate()
                 op.top().PLACE = T.PLACE;
                 op.top().valueStr = T.valueStr;
             }
-            else if (reduceGrammaIndex >= 3 && reduceGrammaIndex <= 6)
-            { //E->E 加减乘除 E ，规约
+            else if (reduceGrammaIndex >= 3 && reduceGrammaIndex <= 4)
+            { //E->E 加减 E ，规约
                 Symbol E1, E2;
                 for (int popTime = 0; popTime < 3; popTime++)
                 { //E->E + E 要出栈三次，进栈一次
@@ -1102,7 +1194,7 @@ void translate()
                 status.push(gotoTable[curStatus][VN2int[op.top().varName]]);
 
                 Symbol T = newtemp();
-                string opStr[4] = {"+", "-", "*", "/"};
+                string opStr[4] = {"+", "-"};
                 GEN(opStr[reduceGrammaIndex - 3], E1.PLACE, E2.PLACE, T);
                 semantic.pop(); //更新语义栈
                 semantic.pop();
@@ -1110,12 +1202,28 @@ void translate()
                 op.top().PLACE = T.PLACE;
                 op.top().valueStr = T.valueStr;
             }
-            else if (reduceGrammaIndex == 7)
-            { //E->(E)
-                Symbol E1;
+            else if (reduceGrammaIndex == 5)
+            { //E->T,规约
+                Symbol T;
+                T = op.top();
+                op.pop();
+                status.pop();
+
+                op.push(Symbol{reduceTerm.leftPart}); //把"E"push进符号栈，但还没和语义栈关联，下面进行
+                curStatus = status.top();
+                status.push(gotoTable[curStatus][VN2int[op.top().varName]]);
+
+                op.top().PLACE = T.PLACE; //E.PLACE = T.PLACE
+                //semantic.pop();
+            }
+            else if (reduceGrammaIndex >= 6 && reduceGrammaIndex <= 7)
+            { //T->T 乘除 F ，规约
+                Symbol E1, E2;
                 for (int popTime = 0; popTime < 3; popTime++)
-                {
-                    if (popTime == 1)
+                { //E->E + E 要出栈三次，进栈一次
+                    if (popTime == 0)
+                        E2 = op.top();
+                    if (popTime == 2)
                         E1 = op.top();
                     op.pop();
                     status.pop();
@@ -1124,19 +1232,50 @@ void translate()
                 curStatus = status.top();
                 status.push(gotoTable[curStatus][VN2int[op.top().varName]]);
 
-                op.top().PLACE = ENTRY[semantic.top()]; //E.PLACE = ENTRY(i)
-                //semantic.pop();
+                Symbol T = newtemp();
+                string opStr[4] = {"*", "/"};
+                GEN(opStr[reduceGrammaIndex - 6], E1.PLACE, E2.PLACE, T);
+                semantic.pop(); //更新语义栈
+                semantic.pop();
+                semantic.push(T.varName);
+                op.top().PLACE = T.PLACE;
+                op.top().valueStr = T.valueStr;
             }
             else if (reduceGrammaIndex == 8)
-            { //E->i
-                int popNum = reduceTerm.rightPart.size();
-                while (popNum)
-                {
-                    status.pop();
-                    op.pop();
-                    popNum--;
-                }
+            { //T->F,规约
+                Symbol F;
+                F = op.top();
+                op.pop();
+                status.pop();
+
                 op.push(Symbol{reduceTerm.leftPart}); //把"E"push进符号栈，但还没和语义栈关联，下面进行
+                curStatus = status.top();
+                status.push(gotoTable[curStatus][VN2int[op.top().varName]]);
+
+                op.top().PLACE = F.PLACE;
+            }
+            else if (reduceGrammaIndex == 9)
+            { //F->(E)
+                Symbol E1;
+                for (int popTime = 0; popTime < 3; popTime++)
+                {
+                    if (popTime == 1)
+                        E1 = op.top();
+                    op.pop();
+                    status.pop();
+                }
+                op.push(Symbol{reduceTerm.leftPart}); //把"F"push进符号栈，但还没和语义栈关联，下面进行
+                curStatus = status.top();
+                status.push(gotoTable[curStatus][VN2int[op.top().varName]]);
+
+                op.top().PLACE = E1.PLACE;
+            }
+            else if (reduceGrammaIndex == 10)
+            { //F->i
+                status.pop();
+                op.pop();
+
+                op.push(Symbol{reduceTerm.leftPart}); //把"F"push进符号栈，但还没和语义栈关联，下面进行
                 curStatus = status.top();
                 status.push(gotoTable[curStatus][VN2int[op.top().varName]]);
                 //E->i规约,将E与语义栈栈顶值关联之后
@@ -1207,11 +1346,11 @@ void translateToAssembly()
 
 int main()
 {
-    initGrammar(); //初始化文法
-    //VT2int["$"] = 0; //文法中没有$符号，人为增加该终结符
+    initGrammar();        //初始化文法
     readVnAndVt();        //读取文法中所有的VN和VT
     converge();           //构造first和follow集
     constructStatusSet(); //构造LR(1)分析表
+    LALR();               //合并LR(1)的同心项目集，构造LALR分析表
     string code;
     ifstream myfile("ex4Data.txt");
     cout << "—————————————词法分析———————————————————" << endl;
