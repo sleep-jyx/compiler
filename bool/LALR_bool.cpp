@@ -265,6 +265,13 @@ set<string> follow[50];     //存储各Vn和Vt的follow集，Vt的follow都是�
 
 string getVn(string grammar)
 { //获取文法中的非终结符
+
+    if (grammar.substr(0, 2) == "<<")
+    { //处理形如"<<exp>>"格式的非终结符
+        int bracketsDelimiter = grammar.find(">>");
+        string Vn = grammar.substr(0, bracketsDelimiter + 2);
+        return Vn;
+    }
     if (grammar[1] == '\'')
     { //带'的非终结符,如 E',T'
         return grammar.substr(0, 2);
@@ -277,9 +284,18 @@ string getVn(string grammar)
 
 string getVt(string grammar)
 { //获取文法中的终结符
-    //Cppkeyword[1] = "i";
-    for (int k = 0; k <= 46; k++)
-    {
+    for (int k = 0; k <= 29; k++)
+    { //这里应该注意：使用最长匹配。举例：遇到>=会优先匹配>，这并非所要的
+        if (grammar.substr(0, 2) == Cppkeyword[k])
+            return grammar.substr(0, 2);
+    }
+    for (int k = 0; k <= 29; k++)
+    { //这里应该注意：使用最长匹配。举例：遇到>=会优先匹配>，这并非所要的
+        if (grammar.substr(0, 1) == Cppkeyword[k])
+            return grammar.substr(0, 1);
+    }
+    for (int k = 30; k <= 46; k++)
+    { //这里应该注意：使用最长匹配。举例：遇到>=会优先匹配>，这并非所要的
         string Vt = grammar.substr(0, Cppkeyword[k].length());
         if (Vt == Cppkeyword[k])
         {
@@ -292,6 +308,7 @@ string getVt(string grammar)
         return grammar.substr(0, 1);
     }
 }
+
 void readVnAndVt()
 {
     //扫描一个产生式，识别所有的非终结符和终结符
@@ -299,7 +316,19 @@ void readVnAndVt()
     {
         for (int j = 0; j < grammar[i].length(); j++)
         {
-            if (grammar[i][j] >= 'A' && grammar[i][j] <= 'Z')
+            if (grammar[i][j] == ' ')
+            {
+                continue;
+            }
+            else if (grammar[i].substr(j, 2) == "<<")
+            { //处理形如"<<exp>>"格式的非终结符
+                int bracketsDelimiter = grammar[i].substr(j, grammar[i].length() - j).find(">>");
+                string Vn = grammar[i].substr(j, bracketsDelimiter + 2);
+                if (VN2int[Vn] == 0)
+                    VN2int[Vn] = ++symbolNum;
+                j = j + Vn.length() - 1;
+            }
+            else if (grammar[i][j] >= 'A' && grammar[i][j] <= 'Z')
             { //非终结符一般大写
                 string Vn = getVn(grammar[i].substr(j, 2));
                 if (VN2int[Vn] == 0)
@@ -336,11 +365,16 @@ void readVnAndVt()
 vector<string> splitGrammarIntoYi(string rightGrama)
 { //将产生式的右部(左部->右部拆分)：X->Y1Y2...Yk
     vector<string> Y;
+
     for (int j = 0; j < rightGrama.length(); j++)
     {
-        if (rightGrama[j] >= 'A' && rightGrama[j] <= 'Z')
+        if (rightGrama[j] == ' ')
+        {
+            continue;
+        }
+        if (rightGrama[j] >= 'A' && rightGrama[j] <= 'Z' || rightGrama.substr(j, 2) == "<<")
         { //非终结符
-            string Vn = getVn(rightGrama.substr(j, 2));
+            string Vn = getVn(rightGrama.substr(j, rightGrama.length() - j));
             Y.push_back(Vn);
             j = j + Vn.length() - 1;
         }
@@ -358,6 +392,9 @@ void split(string grama, string &X, vector<string> &Y)
 {
     int delimiterIndex = grama.find("->");
     X = grama.substr(0, delimiterIndex);
+    //trim()功能，C++不带，只能自己实现，剪除首尾的空格符号
+    X.erase(0, X.find_first_not_of(" "));
+    X.erase(X.find_last_not_of(" ") + 1);
     string rightGrama = grama.substr(delimiterIndex + 2, grama.length() - delimiterIndex - 2);
     Y = splitGrammarIntoYi(rightGrama);
 }
@@ -389,7 +426,9 @@ void getFirstFollowSet()
         string X;
         vector<string> Y;
         int delimiterIndex = grammar[grammarIndex].find("->");
-        X = grammar[grammarIndex].substr(0, delimiterIndex);                                                                       //以"->"为界，分隔产生式
+        X = grammar[grammarIndex].substr(0, delimiterIndex);
+        X.erase(0, X.find_first_not_of(" "));
+        X.erase(X.find_last_not_of(" ") + 1);                                                                                      //以"->"为界，分隔产生式
         string rightGrama = grammar[grammarIndex].substr(delimiterIndex + 2, grammar[grammarIndex].length() - delimiterIndex - 2); //提取左部产生式
         Y = splitGrammarIntoYi(rightGrama);
 
@@ -448,7 +487,7 @@ void converge()
     set<string> oldFirst[50];
     set<string> oldFollow[50];
     int isConverge = 1;
-    string _vn = getVn(grammar[0].substr(0, 2));
+    string _vn = getVn(grammar[0]);
     //这是一个可以手动修改的地方，很多教材的终止符不一样，这里统一一下，都用#作为终止符
     follow[VN2int[_vn]].insert("#");
     int times = 1; //经过多少轮才收敛
@@ -482,7 +521,8 @@ void converge()
         {
             cout << *first_it << " ";
         }
-        cout << "\t" << it->first << "的follow集：\t";
+        cout << endl;
+        cout << it->first << "的follow集：\t";
         for (auto follow_it = follow[vnindex].begin(); follow_it != follow[vnindex].end(); follow_it++)
         {
             cout << *follow_it << " ";
@@ -515,7 +555,7 @@ struct term
         return false;
     }
 };
-const int maxN = 500;
+const int maxN = 2000;
 vector<term> statusSet[maxN]; //项集
 int globalStatusNum = 1;
 int actionTable[maxN][50]; //action表，行表示状态，列表示终结符
@@ -523,60 +563,25 @@ int gotoTable[maxN][50];   //goto表，行表示状态，列表示非终结符
 
 void initGrammar()
 {
-    //表达式文法,用LR(0)构造存在冲突，用SLR可以消除冲突
-    /* grammar.push_back("S->E");
-    grammar.push_back("E->E+T");
-    grammar.push_back("E->T");
-    grammar.push_back("T->T*F");
-    grammar.push_back("T->F");
-    grammar.push_back("F->(E)");
-    grammar.push_back("F->i");
-    */
-    //该文法使用SLR仍有冲突(哈工大mooc例子)，使用LR1分析无冲突
-    /*
-    grammar.push_back("S'->S");
-    grammar.push_back("S->L=R");
-    grammar.push_back("S->R");
-    grammar.push_back("L->*R");
-    grammar.push_back("L->i");
-    grammar.push_back("R->L");
-*/
-    //龙书本科版，LR1例子,验证正确
-    /*
-    grammar.push_back("S'->S");
-    grammar.push_back("S->CC");
-    grammar.push_back("C->cC");
-    grammar.push_back("C->d");
-*/
-    //LALR
-    /*
-    grammar.push_back("S'->S");
-    grammar.push_back("S->aAd");
-    grammar.push_back("S->bBd");
-    grammar.push_back("S->aBe");
-    grammar.push_back("S->bAe");
-    grammar.push_back("A->c");
-    grammar.push_back("B->c");
-    */
     //赋值语句文法
-
+    /*
     grammar.push_back("P->S");            //0
     grammar.push_back("S->i=E");          //1
     grammar.push_back("S->if(B)S;");      //控制流语句
     grammar.push_back("S->if(B)SelseS;"); //3
     grammar.push_back("S->while(B)S;");   //4
-    grammar.push_back("S->B");            //顺序执行文法
+    grammar.push_back("E->B");            //数值类型转布尔值
 
     grammar.push_back("E->@E");  //6
     grammar.push_back("E->E+E"); //7
     grammar.push_back("E->E-E"); //8
-    grammar.push_back("E->T");   //9，为了使得*/的优先级高于+-
+    grammar.push_back("E->T");   //9，为了使得* /的优先级高于+ -
     grammar.push_back("T->T*F"); //10
     grammar.push_back("T->T/F"); //11
-    grammar.push_back("T->F");   //12，为了使得()、i的优先级高于*/
+    grammar.push_back("T->F");   //12，为了使得()、i的优先级高于* /
     grammar.push_back("F->(E)"); //13
     grammar.push_back("F->i");   //14
-
+    
     grammar.push_back("B->!B");    //15
     grammar.push_back("B->(B)");   //16
     grammar.push_back("B->B||B");  //17
@@ -590,26 +595,20 @@ void initGrammar()
     grammar.push_back("C->E>=E");  //25
     grammar.push_back("C->true");  //26
     grammar.push_back("C->false"); //27
+*/
+    //新形式算术表达式文法
 
-    /*
-    //习题册P184习题,成功构造(另外发现：如果程序没错的话，就是题目给的答案有点问题)
-    grammar.push_back("Z->S");
-    grammar.push_back("S->L=R");
-    grammar.push_back("S->R");
-    grammar.push_back("R->L");
-    grammar.push_back("L->*R");
-    grammar.push_back("L->I");
-    */
-    //习题册P189习题
-    /*
-    grammar.push_back("S'->S");
-    grammar.push_back("S->Aa");
-    grammar.push_back("S->dAb");
-    grammar.push_back("S->Bb");
-    grammar.push_back("S->dBa");
-    grammar.push_back("A->c");
-    grammar.push_back("B->c");
-    */
+    grammar.push_back("P-><<ASSIGN>>");                 //0 P->S
+    grammar.push_back("<<ASSIGN>>->i=<<AEXPR>>");       //1 S->i=E
+    grammar.push_back("<<AEXPR>>->@<<AEXPR>>");         //2,E->@E
+    grammar.push_back("<<AEXPR>>-><<AEXPR>>+<<TERM>>"); //3 E->E+T
+    grammar.push_back("<<AEXPR>>-><<AEXPR>>-<<TERM>>"); //4 E->E-T
+    grammar.push_back("<<AEXPR>>-><<TERM>>");           //5 E->T
+    grammar.push_back("<<TERM>>-><<TERM>>*<<FACTOR>>"); //6 T->T*F
+    grammar.push_back("<<TERM>>-><<TERM>>/<<FACTOR>>"); //7 T->T/F
+    grammar.push_back("<<TERM>>-><<FACTOR>>");          //8 T->F
+    grammar.push_back("<<FACTOR>>->i");                 //9 F->i
+    grammar.push_back("<<FACTOR>>->(<<AEXPR>>)");       //10 F->(E)
 }
 
 //该函数作用:项集I读入Vn或Vt可能会生成新的项集J，但也有可能指向已有项集，该函数就是判断是否指向已有项集
@@ -665,7 +664,7 @@ void closure(int statusNum)
         string B = curTerm.rightPart[curTerm.dotPos];
         for (int j = 0; j < grammar.size(); j++)
         { //对增广文法G'中的每个产生式B->gamma
-            if (B != getVn(grammar[j].substr(0, 2)))
+            if (B != getVn(grammar[j].substr(0, grammar[j].length())))
                 continue;
             //将[B->·gamma,b]加入集合I中，其中b是FIRST[beta alpha]中的终结符
             term newTerm;
@@ -817,7 +816,7 @@ void printTable()
         cout << it->first << "  \t";
     for (auto it = VN2int.begin(); it != VN2int.end(); it++)
     { //goto表跳过增广文法的左部
-        if (it->first == getVn(grammar[0].substr(0, 2)))
+        if (it->first == getVn(grammar[0].substr(0, grammar[0].length())))
             continue;
         cout << it->first << "  \t";
     }
@@ -830,10 +829,10 @@ void printTable()
         cout << i << "\t";
         for (auto it = VT2int.begin(); it != VT2int.end(); it++)
         { //action，移进(大20000)、规约(大30000)、接受项为10000
-            if (actionTable[i][it->second] >= 100 && actionTable[i][it->second] < 1000)
-                cout << "s" << actionTable[i][it->second] - 100 << "\t";
-            else if (actionTable[i][it->second] >= 1000 && actionTable[i][it->second] < 10000)
-                cout << "r" << actionTable[i][it->second] - 1000 << "\t";
+            if (actionTable[i][it->second] >= 20000 && actionTable[i][it->second] < 30000)
+                cout << "s" << actionTable[i][it->second] - 20000 << "\t";
+            else if (actionTable[i][it->second] >= 30000 && actionTable[i][it->second] < 40000)
+                cout << "r" << actionTable[i][it->second] - 30000 << "\t";
             else if (actionTable[i][it->second] == 10000)
                 cout << "acc\t";
             else
@@ -841,7 +840,7 @@ void printTable()
         }
         for (auto it = VN2int.begin(); it != VN2int.end(); it++)
         { //goto表跳过增广文法的左部，goto项数字就是项集编号
-            if (it->first == getVn(grammar[0].substr(0, 2)))
+            if (it->first == getVn(grammar[0].substr(0, grammar[0].length())))
                 continue;
             cout << gotoTable[i][it->second] << "  \t";
         }
@@ -894,7 +893,7 @@ void constructStatusSet(int choice = 0)
                     {
                         //LR(1)分析中，只有规约项的后继符才进行规约
                         for (int _i = 0; _i < tmpTerm.subsequence.size(); _i++)
-                            actionTable[curStatus][VT2int[tmpTerm.subsequence[_i]]] = 1000 + genNum; //同样为避免编号冲突，规约项全体加1000
+                            actionTable[curStatus][VT2int[tmpTerm.subsequence[_i]]] = 30000 + genNum; //同样为避免编号冲突，规约项全体加30000
                     }
                 }
                 continue;
@@ -912,7 +911,7 @@ void constructStatusSet(int choice = 0)
         {
             if (actionTable[curStatus][VT2int[symbolToRead.front()]] != 0)
                 cout << "(状态" << curStatus << "移进" << symbolToRead.front() << "存在冲突)";
-            actionTable[curStatus][VT2int[symbolToRead.front()]] = 100 + nextStatus;
+            actionTable[curStatus][VT2int[symbolToRead.front()]] = 20000 + nextStatus;
         }
         else //goto表填充
             gotoTable[curStatus][VN2int[symbolToRead.front()]] = nextStatus;
@@ -978,16 +977,16 @@ void LALR()
                     }
                     subsequenceMap.clear();
                 }
-                cout << "同心状态集:i=" << i << " j=" << j << endl;
+                //cout << "同心状态集:i=" << i << " j=" << j << endl;
                 mergedTo[j] = i;
                 //将状态集J的分析表也并入状态集I，GOTO不会有冲突，也不会有规约-移进冲突，可能存在规约-规约冲突(如果存在则不是LALR文法)
                 for (auto it = VT2int.begin(); it != VT2int.end(); it++)
                 { //只要把状态集J可能的规约项填入状态集I的action表中相应位置就可以了
-                    if (actionTable[j][it->second] >= 1000 && actionTable[j][it->second] < 10000)
+                    if (actionTable[j][it->second] >= 30000 && actionTable[j][it->second] < 40000)
                     {
                         if (actionTable[i][it->second] == 0)
                             actionTable[i][it->second] = actionTable[j][it->second];
-                        else if (actionTable[i][it->second] >= 1000 && actionTable[i][it->second] < 10000 && actionTable[i][it->second] != actionTable[j][it->second])
+                        else if (actionTable[i][it->second] >= 30000 && actionTable[i][it->second] < 40000 && actionTable[i][it->second] != actionTable[j][it->second])
                         { //规约-规约冲突得是两个不同的规约，同一规约不算冲突
                             cout << "产生规约-规约冲突，不是LALR文法" << endl;
                         }
@@ -1008,22 +1007,22 @@ void LALR()
             continue;
         for (auto it = VT2int.begin(); it != VT2int.end(); it++)
         {
-            if (actionTable[j][it->second] >= 100 && actionTable[j][it->second] < 1000 && merged[actionTable[j][it->second] - 100] == 1)
+            if (actionTable[j][it->second] >= 20000 && actionTable[j][it->second] < 30000 && merged[actionTable[j][it->second] - 20000] == 1)
             { //是移进项，且该移进项指向的是被合并的状态集
-                actionTable[j][it->second] = mergedTo[actionTable[j][it->second] - 100] + 100;
+                actionTable[j][it->second] = mergedTo[actionTable[j][it->second] - 20000] + 20000;
             }
         }
         for (auto it = VN2int.begin(); it != VN2int.end(); it++)
         {
             if (merged[gotoTable[j][it->second]] == 1)
-            { //是移进项，且该移进项指向的是被合并的状态集
+            {
                 gotoTable[j][it->second] = mergedTo[gotoTable[j][it->second]];
             }
         }
     }
 
-    printStatus(); //输出状态项集
-    printTable();  //输出分析表
+    //printStatus(); //输出状态项集
+    printTable(); //输出分析表
 }
 
 /***********************************************************************
@@ -1201,16 +1200,16 @@ void translate()
             symbolTable.push_back(tempSym);
             ENTRY[tempSym.varName] = tempSym.PLACE;
         }
-        //goto原状态下标，移进项+100，规约项+1000，接受态10000
-        if (actionTable[curStatus][VT2int[symbolToRead]] >= 100 && actionTable[curStatus][VT2int[symbolToRead]] < 1000)
+        //goto原状态下标，移进项+20000，规约项+30000，接受态10000
+        if (actionTable[curStatus][VT2int[symbolToRead]] >= 20000 && actionTable[curStatus][VT2int[symbolToRead]] < 30000)
         { //由上一个状态读入一个终结符转入新状态
-            status.push(actionTable[curStatus][VT2int[symbolToRead]] - 100);
+            status.push(actionTable[curStatus][VT2int[symbolToRead]] - 20000);
             op.push(Symbol{symbolToRead});
             pointer++;
         }
-        else if (actionTable[curStatus][VT2int[symbolToRead]] >= 1000 && actionTable[curStatus][VT2int[symbolToRead]] < 10000)
+        else if (actionTable[curStatus][VT2int[symbolToRead]] >= 30000 && actionTable[curStatus][VT2int[symbolToRead]] < 40000)
         { //规约项，由上一个状态读入一个终结符
-            int reduceGrammaIndex = actionTable[curStatus][VT2int[symbolToRead]] - 1000;
+            int reduceGrammaIndex = actionTable[curStatus][VT2int[symbolToRead]] - 30000;
             term reduceTerm;
             split(grammar[reduceGrammaIndex], reduceTerm.leftPart, reduceTerm.rightPart);
 
@@ -1235,20 +1234,7 @@ void translate()
                 semantic.pop();
                 GEN("=", E.PLACE, -1, i);
             }
-            else if (reduceGrammaIndex == 5)
-            { //S->B,规约
-                Symbol B;
-                B = op.top();
-                op.pop();
-                status.pop();
-
-                op.push(Symbol{reduceTerm.leftPart}); //把"E"push进符号栈，但还没和语义栈关联，下面进行
-                curStatus = status.top();
-                status.push(gotoTable[curStatus][VN2int[op.top().varName]]);
-
-                op.top().PLACE = B.PLACE;
-            }
-            else if (reduceGrammaIndex == 6)
+            else if (reduceGrammaIndex == 2)
             { //E->@E
                 Symbol E1 = op.top();
                 int popNum = reduceTerm.rightPart.size();
@@ -1269,7 +1255,8 @@ void translate()
                 op.top().PLACE = T.PLACE;
                 op.top().valueStr = T.valueStr;
             }
-            else if (reduceGrammaIndex >= 7 && reduceGrammaIndex <= 8)
+
+            else if (reduceGrammaIndex >= 3 && reduceGrammaIndex <= 4)
             { //E->E 加减 E ，规约
                 Symbol E1, E2;
                 for (int popTime = 0; popTime < 3; popTime++)
@@ -1287,14 +1274,14 @@ void translate()
 
                 Symbol T = newtemp();
                 string opStr[4] = {"+", "-"};
-                GEN(opStr[reduceGrammaIndex - 7], E1.PLACE, E2.PLACE, T);
+                GEN(opStr[reduceGrammaIndex - 3], E1.PLACE, E2.PLACE, T);
                 semantic.pop(); //更新语义栈
                 semantic.pop();
                 semantic.push(T.varName);
                 op.top().PLACE = T.PLACE;
                 op.top().valueStr = T.valueStr;
             }
-            else if (reduceGrammaIndex == 9)
+            else if (reduceGrammaIndex == 5)
             { //E->T,规约
                 Symbol T;
                 T = op.top();
@@ -1308,7 +1295,7 @@ void translate()
                 op.top().PLACE = T.PLACE; //E.PLACE = T.PLACE
                 //semantic.pop();
             }
-            else if (reduceGrammaIndex >= 10 && reduceGrammaIndex <= 11)
+            else if (reduceGrammaIndex >= 6 && reduceGrammaIndex <= 7)
             { //T->T 乘除 F ，规约
                 Symbol E1, E2;
                 for (int popTime = 0; popTime < 3; popTime++)
@@ -1326,14 +1313,14 @@ void translate()
 
                 Symbol T = newtemp();
                 string opStr[4] = {"*", "/"};
-                GEN(opStr[reduceGrammaIndex - 10], E1.PLACE, E2.PLACE, T);
+                GEN(opStr[reduceGrammaIndex - 6], E1.PLACE, E2.PLACE, T);
                 semantic.pop(); //更新语义栈
                 semantic.pop();
                 semantic.push(T.varName);
                 op.top().PLACE = T.PLACE;
                 op.top().valueStr = T.valueStr;
             }
-            else if (reduceGrammaIndex == 12)
+            else if (reduceGrammaIndex == 8)
             { //T->F,规约
                 Symbol F;
                 F = op.top();
@@ -1346,7 +1333,19 @@ void translate()
 
                 op.top().PLACE = F.PLACE;
             }
-            else if (reduceGrammaIndex == 13)
+
+            else if (reduceGrammaIndex == 9)
+            { //F->i
+                status.pop();
+                op.pop();
+
+                op.push(Symbol{reduceTerm.leftPart}); //把"F"push进符号栈，但还没和语义栈关联，下面进行
+                curStatus = status.top();
+                status.push(gotoTable[curStatus][VN2int[op.top().varName]]);
+                //E->i规约,将E与语义栈栈顶值关联之后
+                op.top().PLACE = ENTRY[semantic.top()]; //E.PLACE = ENTRY(i)
+            }
+            else if (reduceGrammaIndex == 10)
             { //F->(E)
                 Symbol E1;
                 for (int popTime = 0; popTime < 3; popTime++)
@@ -1361,17 +1360,6 @@ void translate()
                 status.push(gotoTable[curStatus][VN2int[op.top().varName]]);
 
                 op.top().PLACE = E1.PLACE;
-            }
-            else if (reduceGrammaIndex == 14)
-            { //F->i
-                status.pop();
-                op.pop();
-
-                op.push(Symbol{reduceTerm.leftPart}); //把"F"push进符号栈，但还没和语义栈关联，下面进行
-                curStatus = status.top();
-                status.push(gotoTable[curStatus][VN2int[op.top().varName]]);
-                //E->i规约,将E与语义栈栈顶值关联之后
-                op.top().PLACE = ENTRY[semantic.top()]; //E.PLACE = ENTRY(i)
             }
             else if (reduceGrammaIndex == 15)
             { //B->!B规约，参照E->@E规约

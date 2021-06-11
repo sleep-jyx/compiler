@@ -278,7 +278,6 @@ string getVn(string grammar)
 
 string getVt(string grammar)
 { //获取文法中的终结符
-    //Cppkeyword[1] = "i";
     for (int k = 0; k <= 29; k++)
     { //这里应该注意：使用最长匹配。举例：遇到>=会优先匹配>，这并非所要的
         if (grammar.substr(0, 2) == Cppkeyword[k])
