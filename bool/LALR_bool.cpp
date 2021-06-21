@@ -290,12 +290,12 @@ string getVt(string grammar)
             return grammar.substr(0, 2);
     }
     for (int k = 0; k <= 29; k++)
-    { //这里应该注意：使用最长匹配。举例：遇到>=会优先匹配>，这并非所要的
+    { //使用最长匹配
         if (grammar.substr(0, 1) == Cppkeyword[k])
             return grammar.substr(0, 1);
     }
     for (int k = 30; k <= 46; k++)
-    { //这里应该注意：使用最长匹配。举例：遇到>=会优先匹配>，这并非所要的
+    { //使用最长匹配
         string Vt = grammar.substr(0, Cppkeyword[k].length());
         if (Vt == Cppkeyword[k])
         {
@@ -563,43 +563,33 @@ int gotoTable[maxN][50];   //goto表，行表示状态，列表示非终结符
 
 void initGrammar()
 {
-    //赋值语句文法
+
+    grammar.push_back("P-><<statement>>"); //0 P->S
+
+    grammar.push_back("<<statement>>-><<BE>>");        //11 S->B
+    grammar.push_back("<<BE>>-><<BEor>><<BT>>");       //12
+    grammar.push_back("<<BEor>>-><<BE>>||");           //13
+    grammar.push_back("<<BE>>-><<BT>>");               //14
+    grammar.push_back("<<BT>>-><<BTand>><<BF>>");      //15
+    grammar.push_back("<<BTand>>-><<BT>>&&");          //16
+    grammar.push_back("<<BT>>-><<BF>>");               //17
+    grammar.push_back("<<BF>>->(<<BE>>)");             //18
+    grammar.push_back("<<BF>>->!<<BF>>");              //19
+    grammar.push_back("<<BF>>-><<AEXPR>><<<AEXPR>>");  //20 关系运算符优先级高于布尔运算，低于算术运算
+    grammar.push_back("<<BF>>-><<AEXPR>><=<<AEXPR>>"); //21
+    grammar.push_back("<<BF>>-><<AEXPR>>==<<AEXPR>>"); //22
+    grammar.push_back("<<BF>>-><<AEXPR>>!=<<AEXPR>>"); //23
+    grammar.push_back("<<BF>>-><<AEXPR>>><<AEXPR>>");  //24
+    grammar.push_back("<<BF>>-><<AEXPR>>>=<<AEXPR>>"); //25
+    grammar.push_back("<<BF>>->i<i");                  //26
+    grammar.push_back("<<BF>>->i<=i");                 //27
+    grammar.push_back("<<BF>>->i==i");                 //28
+    grammar.push_back("<<BF>>->i!=i");                 //29
+    grammar.push_back("<<BF>>->i>i");                  //30
+    grammar.push_back("<<BF>>->i>=i");                 //31
+    grammar.push_back("<<BF>>->i");                    //32
     /*
-    grammar.push_back("P->S");            //0
-    grammar.push_back("S->i=E");          //1
-    grammar.push_back("S->if(B)S;");      //控制流语句
-    grammar.push_back("S->if(B)SelseS;"); //3
-    grammar.push_back("S->while(B)S;");   //4
-    grammar.push_back("E->B");            //数值类型转布尔值
-
-    grammar.push_back("E->@E");  //6
-    grammar.push_back("E->E+E"); //7
-    grammar.push_back("E->E-E"); //8
-    grammar.push_back("E->T");   //9，为了使得* /的优先级高于+ -
-    grammar.push_back("T->T*F"); //10
-    grammar.push_back("T->T/F"); //11
-    grammar.push_back("T->F");   //12，为了使得()、i的优先级高于* /
-    grammar.push_back("F->(E)"); //13
-    grammar.push_back("F->i");   //14
-    
-    grammar.push_back("B->!B");    //15
-    grammar.push_back("B->(B)");   //16
-    grammar.push_back("B->B||B");  //17
-    grammar.push_back("B->B&&B");  //18
-    grammar.push_back("B->C");     //19为了使得关系运算符优先级高于逻辑运算符
-    grammar.push_back("C->E<E");   //20
-    grammar.push_back("C->E<=E");  //21
-    grammar.push_back("C->E==E");  //22
-    grammar.push_back("C->E!=E");  //23
-    grammar.push_back("C->E>E");   //24
-    grammar.push_back("C->E>=E");  //25
-    grammar.push_back("C->true");  //26
-    grammar.push_back("C->false"); //27
-*/
-    //新形式算术表达式文法
-
-    grammar.push_back("P-><<ASSIGN>>");                 //0 P->S
-    grammar.push_back("<<ASSIGN>>->i=<<AEXPR>>");       //1 S->i=E
+    grammar.push_back("<<statement>>->i=<<AEXPR>>");    //1 S->i=E
     grammar.push_back("<<AEXPR>>->@<<AEXPR>>");         //2,E->@E
     grammar.push_back("<<AEXPR>>-><<AEXPR>>+<<TERM>>"); //3 E->E+T
     grammar.push_back("<<AEXPR>>-><<AEXPR>>-<<TERM>>"); //4 E->E-T
@@ -609,6 +599,7 @@ void initGrammar()
     grammar.push_back("<<TERM>>-><<FACTOR>>");          //8 T->F
     grammar.push_back("<<FACTOR>>->i");                 //9 F->i
     grammar.push_back("<<FACTOR>>->(<<AEXPR>>)");       //10 F->(E)
+    */
 }
 
 //该函数作用:项集I读入Vn或Vt可能会生成新的项集J，但也有可能指向已有项集，该函数就是判断是否指向已有项集
@@ -1041,15 +1032,19 @@ struct Symbol
     string varName;       //变量名
     string valueStr{"0"}; //变量的值，字符串形式,初始化为0
     int PLACE{-1};        //该变量在符号表中的位置,初始化为-1
+    int TC{-1};           //布尔变量和布尔常量的真出口，标记四元式下标
+    int FC{-1};           //布尔变量和布尔常量的假出口，标记四元式下标
 };
 struct FourYuanFormula
-{                  //四元式结构体
-    string op;     //操作符
-    int arg1Index; //源操作数1的符号表地址
-    int arg2Index; //源操作数2的符号表地址
-    Symbol result; //目的操作数
+{                    //四元式结构体
+    string op;       //操作符
+    int arg1Index;   //源操作数1的符号表地址
+    int arg2Index;   //源操作数2的符号表地址
+    int resultIndex; //目的操作数的符号表地址
 };
 vector<FourYuanFormula> formula; //四元式序列
+const int boolOffset = 10000;    //四元式第四变量区分出口
+int NXQ = 0 + boolOffset;        //指向下一个即将形成的四元式编号
 vector<Symbol> symbolTable;      //符号表
 map<string, int> ENTRY;          //用于查变量的符号表入口地址
 int tempVarNum = 0;              //临时变量个数
@@ -1059,117 +1054,66 @@ Symbol newtemp()
     return Symbol{"T" + to_string(tempVarNum)};
 }
 
-void GEN(string op, int arg1, int arg2, Symbol &result)
+void GEN(string op, int arg1, int arg2, int resultIndex)
 { //运算符、参数1在符号表的编号、参数2在符号表的编号，结果符号
     //产生一个四元式，并填入四元式序列表
     cout << "(" << op << ",";
     arg1 != -1 ? cout << symbolTable[arg1].varName : cout << "_";
     cout << ",";
     arg2 != -1 ? cout << symbolTable[arg2].varName : cout << "_";
-    cout << "," << result.varName << ")" << endl;
-    formula.push_back(FourYuanFormula{op, arg1, arg2, result}); //插入到四元式序列中
-    if (op == "@")
-    { //将临时变量result注册进入符号表
-        result.varName;
-        result.PLACE = symbolTable.size();
-        result.valueStr = "-" + symbolTable[arg1].valueStr;
-        symbolTable.push_back(result);
-        ENTRY[result.varName] = result.PLACE;
-    }
-    if (op == "+")
-    { //将临时变量result注册进入符号表
-        result.PLACE = symbolTable.size();
-        result.valueStr = to_string(stoi(symbolTable[arg1].valueStr) + stoi(symbolTable[arg2].valueStr));
-        symbolTable.push_back(result);
-        ENTRY[result.varName] = result.PLACE;
-    }
-    if (op == "-")
-    { //将临时变量result注册进入符号表
-        result.PLACE = symbolTable.size();
-        result.valueStr = to_string(stoi(symbolTable[arg1].valueStr) - stoi(symbolTable[arg2].valueStr));
-        symbolTable.push_back(result);
-        ENTRY[result.varName] = result.PLACE;
-    }
-    if (op == "*")
-    { //将临时变量result注册进入符号表
-        result.PLACE = symbolTable.size();
-        result.valueStr = to_string(stoi(symbolTable[arg1].valueStr) * stoi(symbolTable[arg2].valueStr));
-        symbolTable.push_back(result);
-        ENTRY[result.varName] = result.PLACE;
-    }
-    if (op == "/")
-    { //将临时变量result注册进入符号表
-        result.PLACE = symbolTable.size();
-        result.valueStr = to_string(stoi(symbolTable[arg1].valueStr) / stoi(symbolTable[arg2].valueStr));
-        symbolTable.push_back(result);
-        ENTRY[result.varName] = result.PLACE;
-    }
-    if (op == "=") //这个result不是临时变量了，故不用注册进入符号表，只进行绑定
-        result.valueStr = symbolTable[arg1].valueStr;
-    if (op == "!")
-    { //将临时变量result注册进入符号表
-        result.varName;
-        result.PLACE = symbolTable.size();
-        result.valueStr = to_string(!stoi(symbolTable[arg1].valueStr));
-        symbolTable.push_back(result);
-        ENTRY[result.varName] = result.PLACE;
-    }
-    //布尔运算符:string bopStr[8] = {"||", "&&", ">", ">=", "==", "!=", "<=", "<"};
-    if (op == "||")
+    cout << ",";
+    resultIndex < boolOffset ? cout << symbolTable[resultIndex].varName : cout << resultIndex - boolOffset;
+    cout << ")" << endl;
+    formula.push_back(FourYuanFormula{op, arg1, arg2, resultIndex}); //插入到四元式序列中
+    NXQ++;
+}
+
+void finalFormula()
+{ //GEN是一边翻译一边产生四元式，对赋值表达式可以。但对于bool表达式，由于真假出口一开始不知道，所以边翻译边打印出的四元式是半成品
+    //该函数打印最终回填之后的四元式
+    for (int i = 1; i < formula.size(); i++)
     {
-        result.PLACE = symbolTable.size();
-        result.valueStr = to_string(stoi(symbolTable[arg1].valueStr) || stoi(symbolTable[arg2].valueStr));
-        symbolTable.push_back(result);
-        ENTRY[result.varName] = result.PLACE;
+        string op = formula[i].op;
+        int arg1 = formula[i].arg1Index;
+        int arg2 = formula[i].arg2Index;
+        int resultIndex = formula[i].resultIndex;
+        //Symbol result = symbolTable[formula[i].resultIndex];
+
+        cout << "(" << op << ",";
+        arg1 != -1 ? cout << symbolTable[arg1].varName : cout << "_";
+        cout << ",";
+        arg2 != -1 ? cout << symbolTable[arg2].varName : cout << "_";
+        cout << ",";
+        resultIndex < boolOffset ? cout << symbolTable[resultIndex].varName : cout << resultIndex - boolOffset;
+        cout << ")" << endl;
     }
-    if (op == "&&")
+}
+
+int merge(int P1, int P2)
+{ //返回并链后的链首。P1、P2代表四元式编号
+    if (P2 == 0 + boolOffset)
+        return P1;
+    else
     {
-        result.PLACE = symbolTable.size();
-        result.valueStr = to_string(stoi(symbolTable[arg1].valueStr) && stoi(symbolTable[arg2].valueStr));
-        symbolTable.push_back(result);
-        ENTRY[result.varName] = result.PLACE;
+        int P = P2;
+        while (formula[P - boolOffset].resultIndex != 0 + boolOffset)
+        {
+            P = formula[P - boolOffset].resultIndex;
+        }
+        formula[P - boolOffset].resultIndex = P1;
+        return P2;
     }
-    if (op == ">")
+}
+
+void backpatch(int P, int t)
+{ //回填
+    //P是链首，TC是增长链，FC是递减链
+    int Q = P;
+    while (Q != 0 + boolOffset)
     {
-        result.PLACE = symbolTable.size();
-        result.valueStr = to_string(stoi(symbolTable[arg1].valueStr) > stoi(symbolTable[arg2].valueStr));
-        symbolTable.push_back(result);
-        ENTRY[result.varName] = result.PLACE;
-    }
-    if (op == ">=")
-    {
-        result.PLACE = symbolTable.size();
-        result.valueStr = to_string(stoi(symbolTable[arg1].valueStr) >= stoi(symbolTable[arg2].valueStr));
-        symbolTable.push_back(result);
-        ENTRY[result.varName] = result.PLACE;
-    }
-    if (op == "==")
-    {
-        result.PLACE = symbolTable.size();
-        result.valueStr = to_string(stoi(symbolTable[arg1].valueStr) == stoi(symbolTable[arg2].valueStr));
-        symbolTable.push_back(result);
-        ENTRY[result.varName] = result.PLACE;
-    }
-    if (op == "!=")
-    {
-        result.PLACE = symbolTable.size();
-        result.valueStr = to_string(stoi(symbolTable[arg1].valueStr) != stoi(symbolTable[arg2].valueStr));
-        symbolTable.push_back(result);
-        ENTRY[result.varName] = result.PLACE;
-    }
-    if (op == "<=")
-    {
-        result.PLACE = symbolTable.size();
-        result.valueStr = to_string(stoi(symbolTable[arg1].valueStr) <= stoi(symbolTable[arg2].valueStr));
-        symbolTable.push_back(result);
-        ENTRY[result.varName] = result.PLACE;
-    }
-    if (op == "<")
-    {
-        result.PLACE = symbolTable.size();
-        result.valueStr = to_string(stoi(symbolTable[arg1].valueStr) < stoi(symbolTable[arg2].valueStr));
-        symbolTable.push_back(result);
-        ENTRY[result.varName] = result.PLACE;
+        int m = formula[Q - boolOffset].resultIndex;
+        formula[Q - boolOffset].resultIndex = t;
+        Q = m;
     }
 }
 
@@ -1177,12 +1121,14 @@ void translate()
 {
     cout << "—————————————赋值表达式翻译为四元式序列———————————————————" << endl;
     //需要三个栈：状态栈、符号栈、语义栈
-    stack<int> status;      //状态栈
-    stack<Symbol> op;       //符号栈
-    stack<string> semantic; //语义栈
-    int pointer = 0;        //输入串指针
-    status.push(0);         //状态栈初始化
-    op.push(Symbol{"#"});   //符号栈初始化,{name、value、place}
+    stack<int> status;            //状态栈
+    stack<Symbol> op;             //符号栈
+    stack<string> semantic;       //语义栈
+    int pointer = 0;              //输入串指针
+    status.push(0);               //状态栈初始化
+    op.push(Symbol{"#"});         //符号栈初始化,{name、value、place}
+    GEN("_", -1, -1, boolOffset); //C++下标从0开始，为了使得四元式下标从1开始，随便加一个四元式
+    int oldPointer = -1;
     while (!op.empty())
     {
         int curStatus = status.top();                      //当前状态
@@ -1191,14 +1137,18 @@ void translate()
         if (lexicalTable[pointer].syn == 1 || lexicalTable[pointer].syn == 2) //1是变量，2是整数
         {
             symbolToRead = "i";
-            semantic.push(lexicalTable[pointer].token); //语义栈
-            //将语义加入符号表，并添加入口地址映射
-            Symbol tempSym; //讲道理，如果是变量应该只有变量名没有值(至少在未初始化和未赋值前)，而整数应该只有值而没有变量名。为兼顾两者，有如下处理
-            tempSym.varName = lexicalTable[pointer].token;
-            tempSym.valueStr = lexicalTable[pointer].token;
-            tempSym.PLACE = symbolTable.size();
-            symbolTable.push_back(tempSym);
-            ENTRY[tempSym.varName] = tempSym.PLACE;
+            if (oldPointer != pointer) //如果读头没有移动，就不要重复读一个符号进语义栈
+            {
+                semantic.push(lexicalTable[pointer].token); //语义栈
+                //将语义加入符号表，并添加入口地址映射
+                Symbol tempSym; //讲道理，如果是变量应该只有变量名没有值(至少在未初始化和未赋值前)，而整数应该只有值而没有变量名。为兼顾两者，有如下处理
+                tempSym.varName = lexicalTable[pointer].token;
+                tempSym.valueStr = lexicalTable[pointer].token;
+                tempSym.PLACE = symbolTable.size();
+                symbolTable.push_back(tempSym);
+                ENTRY[tempSym.varName] = tempSym.PLACE;
+            }
+            oldPointer = pointer;
         }
         //goto原状态下标，移进项+20000，规约项+30000，接受态10000
         if (actionTable[curStatus][VT2int[symbolToRead]] >= 20000 && actionTable[curStatus][VT2int[symbolToRead]] < 30000)
@@ -1213,7 +1163,7 @@ void translate()
             term reduceTerm;
             split(grammar[reduceGrammaIndex], reduceTerm.leftPart, reduceTerm.rightPart);
 
-            if (reduceGrammaIndex == 1)
+            if (grammar[reduceGrammaIndex] == "<<statement>>->i=<<AEXPR>>")
             { //S->i=E
                 Symbol E, i;
                 for (int popTime = 0; popTime < 3; popTime++)
@@ -1232,9 +1182,10 @@ void translate()
                 semantic.pop();
                 i.varName = semantic.top();
                 semantic.pop();
-                GEN("=", E.PLACE, -1, i);
+                i.PLACE = ENTRY[i.varName];
+                GEN("=", E.PLACE, -1, i.PLACE);
             }
-            else if (reduceGrammaIndex == 2)
+            else if (grammar[reduceGrammaIndex] == "<<AEXPR>>->@<<AEXPR>>")
             { //E->@E
                 Symbol E1 = op.top();
                 int popNum = reduceTerm.rightPart.size();
@@ -1249,18 +1200,24 @@ void translate()
                 status.push(gotoTable[curStatus][VN2int[op.top().varName]]);
 
                 Symbol T = newtemp();
-                GEN("@", E1.PLACE, -1, T);
+                T.PLACE = symbolTable.size();
+                T.valueStr = to_string(-1 * stoi(symbolTable[E1.PLACE].valueStr));
+                symbolTable.push_back(T); //临时变量T加入符号表
+                ENTRY[T.varName] = T.PLACE;
+                GEN("@", E1.PLACE, -1, T.PLACE);
                 semantic.pop(); //更新语义栈
                 semantic.push(T.varName);
                 op.top().PLACE = T.PLACE;
                 op.top().valueStr = T.valueStr;
             }
-
-            else if (reduceGrammaIndex >= 3 && reduceGrammaIndex <= 4)
-            { //E->E 加减 E ，规约
+            else if (grammar[reduceGrammaIndex] == "<<AEXPR>>-><<AEXPR>>+<<TERM>>" ||
+                     grammar[reduceGrammaIndex] == "<<AEXPR>>-><<AEXPR>>-<<TERM>>" ||
+                     grammar[reduceGrammaIndex] == "<<TERM>>-><<TERM>>*<<FACTOR>>" ||
+                     grammar[reduceGrammaIndex] == "<<TERM>>-><<TERM>>/<<FACTOR>>")
+            { //算术运算
                 Symbol E1, E2;
                 for (int popTime = 0; popTime < 3; popTime++)
-                { //E->E + E 要出栈三次，进栈一次
+                { //E->E1 + E2 要出栈三次，进栈一次
                     if (popTime == 0)
                         E2 = op.top();
                     if (popTime == 2)
@@ -1273,79 +1230,47 @@ void translate()
                 status.push(gotoTable[curStatus][VN2int[op.top().varName]]);
 
                 Symbol T = newtemp();
-                string opStr[4] = {"+", "-"};
-                GEN(opStr[reduceGrammaIndex - 3], E1.PLACE, E2.PLACE, T);
+                T.PLACE = symbolTable.size();
+                if (reduceTerm.rightPart[1] == "+")
+                    T.valueStr = to_string(stoi(symbolTable[E1.PLACE].valueStr) + stoi(symbolTable[E2.PLACE].valueStr));
+                else if (reduceTerm.rightPart[1] == "-")
+                    T.valueStr = to_string(stoi(symbolTable[E1.PLACE].valueStr) - stoi(symbolTable[E2.PLACE].valueStr));
+                else if (reduceTerm.rightPart[1] == "*")
+                    T.valueStr = to_string(stoi(symbolTable[E1.PLACE].valueStr) * stoi(symbolTable[E2.PLACE].valueStr));
+                else if (reduceTerm.rightPart[1] == "/")
+                    T.valueStr = to_string(stoi(symbolTable[E1.PLACE].valueStr) / stoi(symbolTable[E2.PLACE].valueStr));
+                symbolTable.push_back(T); //临时变量T加入符号表
+                ENTRY[T.varName] = T.PLACE;
+                GEN(reduceTerm.rightPart[1], E1.PLACE, E2.PLACE, T.PLACE);
+
                 semantic.pop(); //更新语义栈
                 semantic.pop();
                 semantic.push(T.varName);
                 op.top().PLACE = T.PLACE;
                 op.top().valueStr = T.valueStr;
             }
-            else if (reduceGrammaIndex == 5)
-            { //E->T,规约
+            else if (grammar[reduceGrammaIndex] == "<<AEXPR>>-><<TERM>>" || grammar[reduceGrammaIndex] == "<<TERM>>-><<FACTOR>>")
+            { //E->T,T->F,规约
                 Symbol T;
                 T = op.top();
                 op.pop();
                 status.pop();
-
                 op.push(Symbol{reduceTerm.leftPart}); //把"E"push进符号栈，但还没和语义栈关联，下面进行
                 curStatus = status.top();
                 status.push(gotoTable[curStatus][VN2int[op.top().varName]]);
-
-                op.top().PLACE = T.PLACE; //E.PLACE = T.PLACE
-                //semantic.pop();
-            }
-            else if (reduceGrammaIndex >= 6 && reduceGrammaIndex <= 7)
-            { //T->T 乘除 F ，规约
-                Symbol E1, E2;
-                for (int popTime = 0; popTime < 3; popTime++)
-                { //E->E + E 要出栈三次，进栈一次
-                    if (popTime == 0)
-                        E2 = op.top();
-                    if (popTime == 2)
-                        E1 = op.top();
-                    op.pop();
-                    status.pop();
-                }
-                op.push(Symbol{reduceTerm.leftPart}); //把"E"push进符号栈，但还没和语义栈关联，下面进行
-                curStatus = status.top();
-                status.push(gotoTable[curStatus][VN2int[op.top().varName]]);
-
-                Symbol T = newtemp();
-                string opStr[4] = {"*", "/"};
-                GEN(opStr[reduceGrammaIndex - 6], E1.PLACE, E2.PLACE, T);
-                semantic.pop(); //更新语义栈
-                semantic.pop();
-                semantic.push(T.varName);
                 op.top().PLACE = T.PLACE;
-                op.top().valueStr = T.valueStr;
             }
-            else if (reduceGrammaIndex == 8)
-            { //T->F,规约
-                Symbol F;
-                F = op.top();
-                op.pop();
-                status.pop();
-
-                op.push(Symbol{reduceTerm.leftPart}); //把"E"push进符号栈，但还没和语义栈关联，下面进行
-                curStatus = status.top();
-                status.push(gotoTable[curStatus][VN2int[op.top().varName]]);
-
-                op.top().PLACE = F.PLACE;
-            }
-
-            else if (reduceGrammaIndex == 9)
+            else if (grammar[reduceGrammaIndex] == "<<FACTOR>>->i")
             { //F->i
-                status.pop();
                 op.pop();
-
+                status.pop();
                 op.push(Symbol{reduceTerm.leftPart}); //把"F"push进符号栈，但还没和语义栈关联，下面进行
                 curStatus = status.top();
                 status.push(gotoTable[curStatus][VN2int[op.top().varName]]);
-                //E->i规约,将E与语义栈栈顶值关联之后
+                //E->i规约,将E与语义栈栈顶值关联
                 op.top().PLACE = ENTRY[semantic.top()]; //E.PLACE = ENTRY(i)
             }
-            else if (reduceGrammaIndex == 10)
+            else if (grammar[reduceGrammaIndex] == "<<FACTOR>>->(<<AEXPR>>)")
             { //F->(E)
                 Symbol E1;
                 for (int popTime = 0; popTime < 3; popTime++)
@@ -1361,106 +1286,191 @@ void translate()
 
                 op.top().PLACE = E1.PLACE;
             }
-            else if (reduceGrammaIndex == 15)
-            { //B->!B规约，参照E->@E规约
-                Symbol E1 = op.top();
-                int popNum = reduceTerm.rightPart.size();
-                while (popNum)
-                { //出栈两次
-                    status.pop();
-                    op.pop();
-                    popNum--;
-                }
+            else if (grammar[reduceGrammaIndex] == "<<statement>>-><<BE>>" ||
+                     grammar[reduceGrammaIndex] == "<<BE>>-><<BT>>" ||
+                     grammar[reduceGrammaIndex] == "<<BT>>-><<BF>>")
+            { //S->BE 或者 <BE> -><BT> 或者 <BT> -> <BF>
+                Symbol BE;
+                BE = op.top();
+                op.pop();
+                status.pop();
+                op.push(Symbol{reduceTerm.leftPart}); //把"E"push进符号栈，但还没和语义栈关联，下面进行
+                curStatus = status.top();
+                status.push(gotoTable[curStatus][VN2int[op.top().varName]]);
+
+                //op.top().PLACE = BE.PLACE;
+                op.top().TC = BE.TC;
+                op.top().FC = BE.FC;
+            }
+            else if (grammar[reduceGrammaIndex] == "<<BE>>-><<BEor>><<BT>>")
+            { //<BE> -><BEor> <BT>
+                Symbol BT = op.top();
+                op.pop();
+                status.pop();
+                Symbol BEor = op.top();
+                op.pop();
+                status.pop();
+
+                op.push(Symbol{reduceTerm.leftPart}); //把"<BE>"push进符号栈
+                curStatus = status.top();
+                status.push(gotoTable[curStatus][VN2int[op.top().varName]]);
+
+                op.top().FC = BT.FC;                 //<BE>.FC= <BT>.FC
+                op.top().TC = merge(BEor.TC, BT.TC); //<BE>的真出口
+            }
+            else if (grammar[reduceGrammaIndex] == "<<BEor>>-><<BE>>||")
+            { //<BEor> -> <BE> ||
+                op.pop();
+                status.pop();
+                Symbol BE = op.top();
+                op.pop();
+                status.pop();
+
+                op.push(Symbol{reduceTerm.leftPart}); //把"<BEor>"push进符号栈
+                curStatus = status.top();
+                status.push(gotoTable[curStatus][VN2int[op.top().varName]]);
+
+                backpatch(BE.FC, NXQ);
+                op.top().TC = BE.TC;
+            }
+
+            else if (grammar[reduceGrammaIndex] == "<<BT>>-><<BTand>><<BF>>")
+            { //<BT> -><BTand><BF>
+                Symbol BF = op.top();
+                op.pop();
+                status.pop();
+                Symbol BTand = op.top();
+                op.pop();
+                status.pop();
+
                 op.push(Symbol{reduceTerm.leftPart});
                 curStatus = status.top();
                 status.push(gotoTable[curStatus][VN2int[op.top().varName]]);
 
-                Symbol T = newtemp();
-                GEN("!", E1.PLACE, -1, T);
-                semantic.pop(); //更新语义栈
-                semantic.push(T.varName);
-                op.top().PLACE = T.PLACE;
-                op.top().valueStr = T.valueStr;
+                op.top().TC = BF.TC;
+                op.top().FC = merge(BTand.FC, BF.FC);
             }
-            else if (reduceGrammaIndex == 16)
-            { //B->(B)规约
-                Symbol E1;
-                for (int popTime = 0; popTime < 3; popTime++)
-                {
-                    if (popTime == 1)
-                        E1 = op.top();
-                    op.pop();
-                    status.pop();
-                }
-                op.push(Symbol{reduceTerm.leftPart}); //把"B"push进符号栈，但还没和语义栈关联，下面进行
-                curStatus = status.top();
-                status.push(gotoTable[curStatus][VN2int[op.top().varName]]);
-
-                op.top().PLACE = ENTRY[semantic.top()]; //B.PLACE = ENTRY(i)
-                semantic.pop();
-            }
-            else if (reduceGrammaIndex >= 17 && reduceGrammaIndex <= 18)
-            { //布尔运算符，bop,{"||","&&","<", "<=", "==", "!=", ">", ">="}
-                Symbol E1, E2;
-                for (int popTime = 0; popTime < 3; popTime++)
-                { //E->E + E 要出栈三次，进栈一次
-                    if (popTime == 0)
-                        E2 = op.top();
-                    if (popTime == 2)
-                        E1 = op.top();
-                    op.pop();
-                    status.pop();
-                }
-                op.push(Symbol{reduceTerm.leftPart}); //把"E"push进符号栈，但还没和语义栈关联，下面进行
-                curStatus = status.top();
-                status.push(gotoTable[curStatus][VN2int[op.top().varName]]);
-
-                Symbol T = newtemp();
-                string bopStr[8] = {"||", "&&", "<", "<=", "==", "!=", ">", ">="};
-                GEN(bopStr[reduceGrammaIndex - 17], E1.PLACE, E2.PLACE, T);
-                semantic.pop(); //更新语义栈
-                semantic.pop();
-                semantic.push(T.varName); //语义栈保存符号表的变量名就够了，最大的作用就是规约后用来查LR分析表转入下一个状态
-                op.top().PLACE = T.PLACE;
-                op.top().valueStr = T.valueStr;
-            }
-            else if (reduceGrammaIndex == 19)
-            { //B->C,规约
-                Symbol C;
-                C = op.top();
+            else if (grammar[reduceGrammaIndex] == "<<BTand>>-><<BT>>&&")
+            { //<BTand> -><BT> &&
+                op.pop();
+                status.pop();
+                Symbol BT = op.top();
                 op.pop();
                 status.pop();
 
-                op.push(Symbol{reduceTerm.leftPart}); //把"E"push进符号栈，但还没和语义栈关联，下面进行
+                op.push(Symbol{reduceTerm.leftPart});
                 curStatus = status.top();
                 status.push(gotoTable[curStatus][VN2int[op.top().varName]]);
 
-                op.top().PLACE = C.PLACE;
+                backpatch(BT.TC, NXQ);
+                op.top().FC = BT.FC;
             }
-            else if (reduceGrammaIndex >= 20 && reduceGrammaIndex <= 25)
-            { //布尔运算符，bop,{"||","&&","<", "<=", "==", "!=", ">", ">="}
-                Symbol E1, E2;
+            else if (grammar[reduceGrammaIndex] == "<<BF>>->(<<BE>>)")
+            { //<<BF>>->(<<BE>>)
+                op.pop();
+                status.pop();
+                Symbol BE = op.top();
+                op.pop();
+                status.pop();
+                op.pop();
+                status.pop();
+
+                op.push(Symbol{reduceTerm.leftPart});
+                curStatus = status.top();
+                status.push(gotoTable[curStatus][VN2int[op.top().varName]]);
+
+                op.top().TC = BE.TC;
+                op.top().FC = BE.FC;
+            }
+            else if (grammar[reduceGrammaIndex] == "<<BF>>->!<<BF>>")
+            { //<<BF>>->!<<BF>>
+                Symbol BF = op.top();
+                op.pop();
+                status.pop();
+                op.pop();
+                status.pop();
+
+                op.push(Symbol{reduceTerm.leftPart});
+                curStatus = status.top();
+                status.push(gotoTable[curStatus][VN2int[op.top().varName]]);
+
+                op.top().TC = BF.FC;
+                op.top().FC = BF.TC;
+            }
+            else if (grammar[reduceGrammaIndex] == "<<BF>>-><<AEXPR>><<<AEXPR>>" ||
+                     grammar[reduceGrammaIndex] == "<<BF>>-><<AEXPR>><=<<AEXPR>>" ||
+                     grammar[reduceGrammaIndex] == "<<BF>>-><<AEXPR>>==<<AEXPR>>" ||
+                     grammar[reduceGrammaIndex] == "<<BF>>-><<AEXPR>>!=<<AEXPR>>" ||
+                     grammar[reduceGrammaIndex] == "<<BF>>-><<AEXPR>>><<AEXPR>>" ||
+                     grammar[reduceGrammaIndex] == "<<BF>>-><<AEXPR>>>=<<AEXPR>>")
+            { //关系运算
+                Symbol AE1, AE2;
                 for (int popTime = 0; popTime < 3; popTime++)
-                { //E->E + E 要出栈三次，进栈一次
+                {
                     if (popTime == 0)
-                        E2 = op.top();
+                        AE2 = op.top();
                     if (popTime == 2)
-                        E1 = op.top();
+                        AE1 = op.top();
                     op.pop();
                     status.pop();
                 }
-                op.push(Symbol{reduceTerm.leftPart}); //把"E"push进符号栈，但还没和语义栈关联，下面进行
+                op.push(Symbol{reduceTerm.leftPart}); //把"BF"push进符号栈，但还没和语义栈关联，下面进行
                 curStatus = status.top();
                 status.push(gotoTable[curStatus][VN2int[op.top().varName]]);
 
-                Symbol T = newtemp();
-                string bopStr[6] = {"<", "<=", "==", "!=", ">", ">="};
-                GEN(bopStr[reduceGrammaIndex - 20], E1.PLACE, E2.PLACE, T);
-                semantic.pop(); //更新语义栈
+                op.top().TC = NXQ;
+                op.top().FC = NXQ + 1;
+                GEN(reduceTerm.rightPart[1], AE1.PLACE, AE2.PLACE, 0);
+                GEN("j", -1, -1, 0);
+            }
+            else if (grammar[reduceGrammaIndex] == "<<BF>>->i<i" ||
+                     grammar[reduceGrammaIndex] == "<<BF>>->i<=i" ||
+                     grammar[reduceGrammaIndex] == "<<BF>>->i==i" ||
+                     grammar[reduceGrammaIndex] == "<<BF>>->i!=i" ||
+                     grammar[reduceGrammaIndex] == "<<BF>>->i>i" ||
+                     grammar[reduceGrammaIndex] == "<<BF>>->i>=i")
+            {
+                Symbol i1, i2;
+                for (int popTime = 0; popTime < 3; popTime++)
+                {
+                    if (popTime == 0)
+                        i2 = op.top();
+                    if (popTime == 2)
+                        i1 = op.top();
+                    op.pop();
+                    status.pop();
+                }
+                op.push(Symbol{reduceTerm.leftPart}); //把"BF"push进符号栈，但还没和语义栈关联，下面进行
+                curStatus = status.top();
+                status.push(gotoTable[curStatus][VN2int[op.top().varName]]);
+
+                i2.PLACE = ENTRY[semantic.top()];
                 semantic.pop();
-                semantic.push(T.varName); //语义栈保存符号表的变量名就够了，最大的作用就是规约后用来查LR分析表转入下一个状态
-                op.top().PLACE = T.PLACE;
-                op.top().valueStr = T.valueStr;
+                i1.PLACE = ENTRY[semantic.top()];
+                semantic.pop();
+                op.top().TC = NXQ;
+                op.top().FC = NXQ + 1;
+                //op.top().PLACE = ENTRY[semantic.top()];
+                GEN(reduceTerm.rightPart[1], i1.PLACE, i2.PLACE, 0 + boolOffset);
+                GEN("j", -1, -1, 0 + boolOffset);
+            }
+            else if (grammar[reduceGrammaIndex] == "<<BF>>->i")
+            {
+                Symbol i;
+                i = op.top();
+                op.pop();
+                status.pop();
+
+                op.push(Symbol{reduceTerm.leftPart}); //把"BF"push进符号栈，但还没和语义栈关联，下面进行
+                curStatus = status.top();
+                status.push(gotoTable[curStatus][VN2int[op.top().varName]]);
+
+                op.top().TC = NXQ;
+                op.top().FC = NXQ + 1;
+                i.PLACE = ENTRY[semantic.top()];
+
+                GEN("jnz", i.PLACE, -1, 0 + boolOffset);
+                GEN("j", -1, -1, 0 + boolOffset);
             }
         }
         else if (actionTable[curStatus][VT2int[symbolToRead]] == 10000)
@@ -1483,7 +1493,7 @@ void translateToAssembly()
         string op = formula[i].op;
         int arg1 = formula[i].arg1Index;
         int arg2 = formula[i].arg2Index;
-        Symbol result = formula[i].result;
+        Symbol result = symbolTable[formula[i].resultIndex];
 
         if (op == "=")
         {
@@ -1538,6 +1548,7 @@ int main()
     while (getline(myfile, code)) //按行读取文件，可读取空格
         scanner(code);            //词法分析结束，分析结果存储在lexicalTable中
     translate();                  //赋值表达式源程序翻译为四元式序列
-    translateToAssembly();        //将四元式序列翻译为汇编代码
+    finalFormula();
+    //translateToAssembly();        //将四元式序列翻译为汇编代码
     return 0;
 }
