@@ -61,7 +61,7 @@ void initGrammar()
     grammar.push_back("C->d");
 */
     //赋值语句文法
-
+    /*
     grammar.push_back("S->A");
     grammar.push_back("A->i=E");
     grammar.push_back("E->@E");
@@ -75,6 +75,7 @@ void initGrammar()
     grammar.push_back("E->E>E");
     grammar.push_back("E->E==E");
     grammar.push_back("E->E<E");
+    */
     /*
     //习题册P184习题,成功构造(另外发现：如果程序没错的话，就是题目给的答案有点问题)
     grammar.push_back("Z->S");
@@ -94,6 +95,9 @@ void initGrammar()
     grammar.push_back("A->c");
     grammar.push_back("B->c");
     */
+    grammar.push_back("S->AA");
+    grammar.push_back("A->Aa");
+    grammar.push_back("A->a");
 }
 
 int mergeSet()
