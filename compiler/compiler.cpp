@@ -31,6 +31,8 @@ public:
 //存储词法分析结果
 word lexicalTable[1000];
 int lexicalTableLen = 0;
+//定位二元式在哪源代码的哪一行
+vector<int> whichLine;
 
 // 处理关键词和变量的函数
 word letterAnalysis(const string &subCode)
@@ -555,11 +557,11 @@ struct term
         return false;
     }
 };
-const int maxN = 4000;
+const int maxN = 4000;        //预定最大有maxN个状态，不够再加，但最好不要超过10000，不然可能会发生未知错误
 vector<term> statusSet[maxN]; //项集
-int globalStatusNum = 1;
-int actionTable[maxN][50]; //action表，行表示状态，列表示终结符
-int gotoTable[maxN][50];   //goto表，行表示状态，列表示非终结符
+int globalStatusNum = 1;      //项集编号
+int actionTable[maxN][50];    //action表，行表示状态，列表示终结符。这里预定最多50个终结符，应该够用了
+int gotoTable[maxN][50];      //goto表，行表示状态，列表示非终结符
 
 void initGrammar()
 {
@@ -1036,7 +1038,7 @@ void LALR()
 
 /***********************************************************************
  *                                                                     *
- * 第四部分：使用第三部分生成的LR1分析表对赋值表达式进行语法分析，               *
+ * 第四部分：使用第三部分生成的LALR分析表对赋值表达式进行语法分析，              *
  *         边语法分析边进行语法制导翻译，生成四元式序列和汇编代码               *
  *                                                                     *
  *   (1) GEN():输出四元式；并将目的操作数与符号表中的相应符号进行绑定或注册      *
@@ -1185,8 +1187,22 @@ void translate()
             }
             oldPointer = pointer;
         }
+        if (actionTable[curStatus][VT2int[symbolToRead]] == 0)
+        {
+            cout << "语法有误,读入" << symbolToRead << "时出错" << endl;
+            cout << "出错行数:";
+            for (int lineNum = 0; lineNum < whichLine.size(); lineNum++)
+            {
+                if (whichLine[lineNum] > pointer)
+                {
+                    cout << lineNum << endl;
+                    break;
+                }
+            }
+            exit(0);
+        }
         //goto原状态下标，移进项+20000，规约项+30000，接受态10000
-        if (actionTable[curStatus][VT2int[symbolToRead]] >= 20000 && actionTable[curStatus][VT2int[symbolToRead]] < 30000)
+        else if (actionTable[curStatus][VT2int[symbolToRead]] >= 20000 && actionTable[curStatus][VT2int[symbolToRead]] < 30000)
         { //由上一个状态读入一个终结符转入新状态
             status.push(actionTable[curStatus][VT2int[symbolToRead]] - 20000);
             op.push(Symbol{symbolToRead});
@@ -1894,13 +1910,18 @@ void translateToAssembly()
         }
     }
 }
+
 void lex()
 {
     string code;
     ifstream myfile("testC.txt");
     cout << "—————————————词法分析———————————————————" << endl;
+    whichLine.push_back(0);
     while (getline(myfile, code)) //按行读取文件，可读取空格
-        scanner(code);            //词法分析结束，分析结果存储在lexicalTable中
+    {
+        scanner(code);                        //词法分析结束，分析结果存储在lexicalTable中
+        whichLine.push_back(lexicalTableLen); //用于记录m~n个二元式是哪行源代码中，以便出错定位
+    }
 }
 
 int main()
