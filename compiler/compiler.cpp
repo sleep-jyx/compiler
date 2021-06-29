@@ -904,7 +904,11 @@ void constructStatusSet(int choice = 0)
                     {
                         //LR(1)分析中，只有规约项的后继符才进行规约
                         for (int _i = 0; _i < tmpTerm.subsequence.size(); _i++)
+                        {
+                            if (actionTable[curStatus][VT2int[tmpTerm.subsequence[_i]]] != 0)
+                                cout << "(状态" << curStatus << "存在规约-规约冲突)" << endl;
                             actionTable[curStatus][VT2int[tmpTerm.subsequence[_i]]] = 30000 + genNum; //同样为避免编号冲突，规约项全体加30000
+                        }
                     }
                 }
                 continue;
@@ -1148,6 +1152,19 @@ void backpatch(int P, int t)
     }
 }
 
+void checkError(int pointer)
+{
+    //cout << "语法有误,读入" << symbolToRead << "时出错" << endl;
+    cout << "语法有误,出错行数:";
+    for (int lineNum = 0; lineNum < whichLine.size(); lineNum++)
+    {
+        if (whichLine[lineNum] > pointer)
+        {
+            cout << lineNum << endl;
+            break;
+        }
+    }
+}
 void translate()
 {
     cout << "—————————————C源程序翻译为四元式序列———————————————————" << endl;
@@ -1189,16 +1206,7 @@ void translate()
         }
         if (actionTable[curStatus][VT2int[symbolToRead]] == 0)
         {
-            cout << "语法有误,读入" << symbolToRead << "时出错" << endl;
-            cout << "出错行数:";
-            for (int lineNum = 0; lineNum < whichLine.size(); lineNum++)
-            {
-                if (whichLine[lineNum] > pointer)
-                {
-                    cout << lineNum << endl;
-                    break;
-                }
-            }
+            checkError(pointer);
             exit(0);
         }
         //goto原状态下标，移进项+20000，规约项+30000，接受态10000
@@ -1286,14 +1294,22 @@ void translate()
 
                 Symbol T = newtemp();
                 T.PLACE = symbolTable.size();
-                if (reduceTerm.rightPart[1] == "+")
-                    T.valueStr = to_string(stoi(symbolTable[E1.PLACE].valueStr) + stoi(symbolTable[E2.PLACE].valueStr));
-                else if (reduceTerm.rightPart[1] == "-")
-                    T.valueStr = to_string(stoi(symbolTable[E1.PLACE].valueStr) - stoi(symbolTable[E2.PLACE].valueStr));
-                else if (reduceTerm.rightPart[1] == "*")
-                    T.valueStr = to_string(stoi(symbolTable[E1.PLACE].valueStr) * stoi(symbolTable[E2.PLACE].valueStr));
-                else if (reduceTerm.rightPart[1] == "/")
-                    T.valueStr = to_string(stoi(symbolTable[E1.PLACE].valueStr) / stoi(symbolTable[E2.PLACE].valueStr));
+                try
+                {
+                    if (reduceTerm.rightPart[1] == "+")
+                        T.valueStr = to_string(stoi(symbolTable[E1.PLACE].valueStr) + stoi(symbolTable[E2.PLACE].valueStr));
+                    else if (reduceTerm.rightPart[1] == "-")
+                        T.valueStr = to_string(stoi(symbolTable[E1.PLACE].valueStr) - stoi(symbolTable[E2.PLACE].valueStr));
+                    else if (reduceTerm.rightPart[1] == "*")
+                        T.valueStr = to_string(stoi(symbolTable[E1.PLACE].valueStr) * stoi(symbolTable[E2.PLACE].valueStr));
+                    else if (reduceTerm.rightPart[1] == "/")
+                        T.valueStr = to_string(stoi(symbolTable[E1.PLACE].valueStr) / stoi(symbolTable[E2.PLACE].valueStr));
+                }
+                catch (...)
+                {
+                    checkError(pointer);
+                    exit(0);
+                }
                 symbolTable.push_back(T); //临时变量T加入符号表
                 ENTRY[T.varName] = T.PLACE;
                 GEN(reduceTerm.rightPart[1], E1.PLACE, E2.PLACE, T.PLACE);
@@ -1816,7 +1832,7 @@ void translateToAssembly()
     {
         it->second += to_string(labelNum);
         labelNum++;
-        cout << it->first << ":" << it->second << endl;
+        //cout << it->first << ":" << it->second << endl;
     }
     for (int i = 1; i < formula.size(); i++)
     {
@@ -1924,6 +1940,7 @@ void lex()
     }
 }
 
+//文法还是有问题，至少if语句没法嵌套
 int main()
 {
     initGrammar();         //初始化文法
