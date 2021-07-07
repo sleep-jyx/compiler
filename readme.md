@@ -4,9 +4,9 @@
 * experiment3：构造优先函数和优先分析表识别表达式。
 * experiment4：构造LR1分析表，对赋值表达式进行语法制导翻译。
 * LR族：
-  $\quad$ 给定一文法，自动构造LR0、SLR、LR1、LALR分析表，构造过程可视化。
+  给定一文法，自动构造LR0、SLR、LR1、LALR分析表，构造过程可视化。
 * compiler：
-  $\quad$ 涵盖C语言文法中的算术运算文法、赋值文法、布尔运算文法、if、while、do-while和复合语句文法，并使用构造的LALR分析表，对C语言源程序进行语法制导翻译，中间代码以四元式形式给出，并翻译为汇编代码。
+  涵盖C语言文法中的算术运算文法、赋值文法、布尔运算文法、if、while、do-while和复合语句文法，并使用构造的LALR分析表，对C语言源程序进行语法制导翻译，中间代码以四元式形式给出，并翻译为汇编代码。
 
 # 特点
 1. experiment2中构造LL1文法的预测分析表时，自动生成非终结符的first集和follow集
@@ -39,7 +39,9 @@
 }#
 ```
 * 翻译为四元式
+<br>
 ![](pic/compiler/result1.png)
 * 翻译为汇编代码
+<br>
 ![](pic/compiler/result2.png)
 ![](pic/compiler/result3.png)
