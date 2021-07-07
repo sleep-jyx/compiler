@@ -39,9 +39,10 @@
 }#
 ```
 * 翻译为四元式
-<br>
+
 ![](pic/compiler/result1.png)
+
 * 翻译为汇编代码
-<br>
+
 ![](pic/compiler/result2.png)
 ![](pic/compiler/result3.png)
