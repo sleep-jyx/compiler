@@ -620,6 +620,12 @@ void initGrammar()
     grammar.push_back("<<TERM>>-><<FACTOR>>");          //8 T->F
     grammar.push_back("<<FACTOR>>->i");                 //9 F->i
     grammar.push_back("<<FACTOR>>->(<<AEXPR>>)");       //10 F->(E)
+    /*
+    grammar.push_back("S'->S");
+    grammar.push_back("S->CC");
+    grammar.push_back("C->cC");
+    grammar.push_back("C->d");
+    */
 }
 
 //该函数作用:项集I读入Vn或Vt可能会生成新的项集J，但也有可能指向已有项集，该函数就是判断是否指向已有项集
@@ -992,7 +998,7 @@ void LALR()
                     }
                     subsequenceMap.clear();
                 }
-                //cout << "同心状态集:i=" << i << " j=" << j << endl;
+                cout << "同心状态集:i=" << i << " j=" << j << endl;
                 mergedTo[j] = i;
                 //将状态集J的分析表也并入状态集I，GOTO不会有冲突，也不会有规约-移进冲突，可能存在规约-规约冲突(如果存在则不是LALR文法)
                 for (auto it = VT2int.begin(); it != VT2int.end(); it++)
@@ -1036,8 +1042,8 @@ void LALR()
         }
     }
 
-    //printStatus(); //输出状态项集
-    printTable(); //输出分析表
+    printStatus(); //输出状态项集
+    printTable();  //输出分析表
 }
 
 //文法还是有问题，至少if语句没法嵌套

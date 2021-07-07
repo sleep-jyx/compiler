@@ -1940,7 +1940,6 @@ void lex()
     }
 }
 
-//文法还是有问题，至少if语句没法嵌套
 int main()
 {
     initGrammar();         //初始化文法

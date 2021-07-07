@@ -565,11 +565,18 @@ int gotoTable[maxN][50];      //goto表，行表示状态，列表示非终结�
 
 void initGrammar()
 {
-
-    grammar.push_back("S'->S");
-    grammar.push_back("S->CC");
-    grammar.push_back("C->cC");
-    grammar.push_back("C->d");
+    /*
+    grammar.push_back("S->AA");
+    grammar.push_back("A->Aa");
+    grammar.push_back("A->a");
+    */
+    grammar.push_back("S'->E");
+    grammar.push_back("E->E+T");
+    grammar.push_back("E->T");
+    grammar.push_back("T->T*F");
+    grammar.push_back("T->F");
+    grammar.push_back("F->(E)");
+    grammar.push_back("F->i");
 }
 
 //该函数作用:项集I读入Vn或Vt可能会生成新的项集J，但也有可能指向已有项集，该函数就是判断是否指向已有项集

@@ -23,15 +23,23 @@ struct term
         return false;
     }
 };
-vector<term> statusSet[50]; //项集
+vector<term> statusSet[200]; //项集
 int globalStatusNum = 1;
 int actionTable[50][50]; //action表，行表示状态，列表示终结符
 int gotoTable[50][50];   //goto表，行表示状态，列表示非终结符
 
 void initGrammar()
 {
-    //表达式文法,用LR(0)构造存在冲突，用SLR可以消除冲突
-    /* grammar.push_back("E'->E");
+    /*
+    grammar.push_back("S'->S");
+    grammar.push_back("S->L=R");
+    grammar.push_back("S->R");
+    grammar.push_back("L->*R");
+    grammar.push_back("L->i");
+    grammar.push_back("R->L");
+    */
+    /*
+    grammar.push_back("S'->E");
     grammar.push_back("E->E+T");
     grammar.push_back("E->T");
     grammar.push_back("T->T*F");
@@ -39,51 +47,9 @@ void initGrammar()
     grammar.push_back("F->(E)");
     grammar.push_back("F->i");
     */
-    //该文法使用SLR仍有冲突
-    /*grammar.push_back("S'->S");
-    grammar.push_back("S->L=R");
-    grammar.push_back("S->R");
-    grammar.push_back("R->L");
-    grammar.push_back("L->*R");
-    grammar.push_back("L->i");
-    */
-    /*
-    grammar.push_back("S'->E");
-    grammar.push_back("E->E+E");
-    grammar.push_back("E->E-E");
-    grammar.push_back("E->E*E");
-    grammar.push_back("E->E/E");
-    grammar.push_back("E->(E)");
-    grammar.push_back("E->i");
-    */
-    //赋值语句文法
-    /*
-    grammar.push_back("S'->A");
-    grammar.push_back("A->i=E");
-    grammar.push_back("E->@E");
-    grammar.push_back("E->E+E");
-    grammar.push_back("E->E-E");
-    grammar.push_back("E->E*E");
-    grammar.push_back("E->E/E");
-    grammar.push_back("E->(E)");
-    grammar.push_back("E->i");
-    */
     grammar.push_back("S'->S");
-    grammar.push_back("S->S(S)");
-    grammar.push_back("S->null");
-
-    //布尔表达式文法
-    /*
-    grammar.push_back("E'->E");
-    grammar.push_back("E->E&&E");
-    grammar.push_back("E->E||E");
-    grammar.push_back("E->!E");
-    grammar.push_back("E->(E)");
-    grammar.push_back("E->i");
-    grammar.push_back("E->E<E");
-    grammar.push_back("E->E>E");
-    grammar.push_back("E->E==E");
-    */
+    grammar.push_back("S->aS");
+    grammar.push_back("S->b");
 }
 
 int mergeSet()
@@ -397,29 +363,11 @@ void constructStatusSet(int choice = 0)
 
 int main()
 {
-    initGrammar();        //初始化文法
-    VT2int["$"] = 0;      //文法中没有$符号，人为增加该终结符
-    readVnAndVt();        //读取文法中所有的VN和VT
-    converge();           //构造first和follow集
-    constructStatusSet(); //默认LR(0)分析表构造，参数1构造SLR分析表
+    initGrammar();         //初始化文法
+    VT2int["$"] = 0;       //文法中没有$符号，人为增加该终结符
+    readVnAndVt();         //读取文法中所有的VN和VT
+    converge();            //构造first和follow集
+    constructStatusSet(1); //默认LR(0)分析表构造，参数1构造SLR分析表
 
-    /*string code;
-    ifstream myfile("ex4Data.txt");
-    cout << "—————————————词法分析———————————————————" << endl;
-    while (getline(myfile, code)) //按行读取文件，可读取空格
-        scanner(code);            // 词法分析结束，分析结果存储在lexicalTable中
-
-    //需要三个栈：状态栈、符号栈、语义栈
-    cout << "—————————————语法分析———————————————————" << endl;
-    stack<int> status;          //状态栈
-    stack<string> op, semantic; //符号栈、语义栈
-    int pointer = 0;            //输入串指针
-    status.push(0);             //状态栈初始化
-    op.push("#");               //符号栈初始化
-    while (!op.empty())
-    {
-        int curStatus = status.top();         //当前状态
-        word curWord = lexicalTable[pointer]; //当前读头词法分析所得二元组
-    }*/
     return 0;
 }
